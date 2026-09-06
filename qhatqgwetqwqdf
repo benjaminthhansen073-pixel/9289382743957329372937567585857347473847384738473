@@ -1,16 +1,36 @@
-if _G.GridiGrowersLoaded then
-	return
-end
-_G.GridiGrowersLoaded = true
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local TeleportService = game:GetService("TeleportService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+
+-- Clean up an older copy instead of returning early.
+-- This fixes the key window not appearing when the script is run twice.
+if type(_G.GridiGrowersCleanup) == "function" then
+	pcall(_G.GridiGrowersCleanup)
+end
+
+local oldPlayerGui = playerGui:FindFirstChild("GridiGrowers")
+if oldPlayerGui then
+	oldPlayerGui:Destroy()
+end
+
+if typeof(gethui) == "function" then
+	pcall(function()
+		local hidden = gethui()
+		local oldHiddenGui = hidden and hidden:FindFirstChild("GridiGrowers")
+		if oldHiddenGui then
+			oldHiddenGui:Destroy()
+		end
+	end)
+end
+
+_G.GridiGrowersLoaded = true
 
 local KEY = [[1029peou746s"h1212]]
 local KEY_LINK = "https://link-target.net/3287847/ntYxCXSBfWqQ"
@@ -26,7 +46,9 @@ local State = {
 	WalkSpeed = 45,
 
 	Fly = false,
-	FlySpeed = 65
+	FlySpeed = 65,
+
+	AntiIdle = false
 }
 
 local Theme = {
@@ -742,10 +764,78 @@ local function startFly()
 	end)
 end
 
+local function rejoinServer()
+	local success, err = pcall(function()
+		if game.JobId ~= "" then
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+		else
+			TeleportService:Teleport(game.PlaceId, player)
+		end
+	end)
+
+	return success, err
+end
+
+local function leaveServer()
+	pcall(function()
+		player:Kick("Left using Gridi Growers")
+	end)
+end
+
+local function resetCharacter()
+	local humanoid = getHumanoid()
+	if not humanoid then
+		return false
+	end
+
+	humanoid.Health = 0
+	return true
+end
+
+local function copyText(text)
+	if typeof(setclipboard) == "function" then
+		local ok = pcall(function()
+			setclipboard(text)
+		end)
+		if ok then
+			return true
+		end
+	end
+
+	if typeof(toclipboard) == "function" then
+		local ok = pcall(function()
+			toclipboard(text)
+		end)
+		if ok then
+			return true
+		end
+	end
+
+	return false
+end
+
+local antiIdleConnection = player.Idled:Connect(function()
+	if not State.AntiIdle then
+		return
+	end
+
+	pcall(function()
+		VirtualUser:CaptureController()
+		local camera = workspace.CurrentCamera
+		local cameraCFrame = camera and camera.CFrame or CFrame.new()
+		VirtualUser:Button2Down(Vector2.new(0, 0), cameraCFrame)
+		task.wait(0.08)
+		VirtualUser:Button2Up(Vector2.new(0, 0), cameraCFrame)
+	end)
+end)
+
 local screen = Instance.new("ScreenGui")
 screen.Name = "GridiGrowers"
 screen.ResetOnSpawn = false
 screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screen.IgnoreGuiInset = true
+screen.DisplayOrder = 999999
+screen.Enabled = true
 
 if typeof(gethui) == "function" then
 	local success, result = pcall(gethui)
@@ -885,10 +975,13 @@ local function notify(title, text)
 end
 
 local keyWindow = Instance.new("Frame")
+keyWindow.Name = "AccessWindow"
 keyWindow.Size = UDim2.fromOffset(430, 310)
 keyWindow.Position = UDim2.new(0.5, -215, 0.5, -155)
 keyWindow.BackgroundColor3 = Theme.Background
 keyWindow.BorderSizePixel = 0
+keyWindow.Visible = true
+keyWindow.ZIndex = 50
 keyWindow.Parent = screen
 
 corner(keyWindow, 14)
@@ -1708,6 +1801,63 @@ actionButton(
 	end
 )
 
+section(utilityPage, "Session")
+
+toggle(
+	utilityPage,
+	"Anti AFK",
+	"Prevents the normal idle kick while this is enabled.",
+	function(value)
+		State.AntiIdle = value
+		notify(
+			"Anti AFK",
+			value and "Idle protection enabled." or "Idle protection disabled."
+		)
+	end
+)
+
+actionButton(
+	utilityPage,
+	"Rejoin Server",
+	"Reconnects you to this same server.",
+	function()
+		notify("Utility", "Rejoining server...")
+		local ok = rejoinServer()
+		if not ok then
+			notify("Utility", "Rejoin failed. Try again in a moment.")
+		end
+	end
+)
+
+actionButton(
+	utilityPage,
+	"Leave Server",
+	"Disconnects you from the current server.",
+	function()
+		leaveServer()
+	end
+)
+
+actionButton(
+	utilityPage,
+	"Reset Character",
+	"Respawns your character without leaving the server.",
+	function()
+		local ok = resetCharacter()
+		notify("Utility", ok and "Character reset." or "Character is not ready.")
+	end
+)
+
+actionButton(
+	utilityPage,
+	"Copy Server ID",
+	"Copies the current JobId so you can save this server.",
+	function()
+		local ok = copyText(game.JobId)
+		notify("Utility", ok and "Server ID copied." or "Clipboard is not supported.")
+	end
+)
+
 section(playerPage, "Movement")
 
 toggle(
@@ -1802,23 +1952,7 @@ unlockButton.MouseLeave:Connect(function()
 end)
 
 local function copyKeyLink()
-	local copied = false
-
-	if typeof(setclipboard) == "function" then
-		local success = pcall(function()
-			setclipboard(KEY_LINK)
-		end)
-
-		copied = success
-	end
-
-	if not copied and typeof(toclipboard) == "function" then
-		local success = pcall(function()
-			toclipboard(KEY_LINK)
-		end)
-
-		copied = success
-	end
+	local copied = copyText(KEY_LINK)
 
 	if copied then
 		keyStatus.Text = "Key link copied to clipboard"
@@ -1979,3 +2113,26 @@ player.CharacterAdded:Connect(function()
 		startFly()
 	end
 end)
+
+
+_G.GridiGrowersCleanup = function()
+	State.AutoBuy = false
+	State.AutoHarvest = false
+	State.AutoSell = false
+	State.AntiIdle = false
+	State.Fly = false
+
+	pcall(stopFly)
+
+	if antiIdleConnection then
+		pcall(function()
+			antiIdleConnection:Disconnect()
+		end)
+	end
+
+	if screen and screen.Parent then
+		pcall(function()
+			screen:Destroy()
+		end)
+	end
+end
