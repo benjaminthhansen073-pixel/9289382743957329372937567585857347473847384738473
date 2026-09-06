@@ -187,15 +187,12 @@ local function getSeedsInStock()
 
 				if stockLabel and stockLabel:IsA("TextLabel") then
 					local text = stockLabel.Text or ""
-
-					local amount =
-						tonumber(text:match("[xX]%s*(%d+)"))
+					local amount = tonumber(text:match("[xX]%s*(%d+)"))
 						or tonumber(text:match("(%d+)"))
 						or 0
 
 					if amount > 0 then
 						found[item] = true
-
 						table.insert(list, {
 							Name = item.Name,
 							Stock = amount
@@ -209,7 +206,152 @@ local function getSeedsInStock()
 	return list
 end
 
+local function promptPart(prompt)
+	local parent = prompt.Parent
+
+	while parent do
+		if parent:IsA("BasePart") then
+			return parent
+		end
+
+		parent = parent.Parent
+	end
+end
+
+local function promptContext(prompt)
+	local text = {
+		prompt.ActionText or "",
+		prompt.ObjectText or ""
+	}
+
+	local node = prompt.Parent
+	local depth = 0
+
+	while node and node ~= workspace and depth < 8 do
+		table.insert(text, node.Name)
+		node = node.Parent
+		depth += 1
+	end
+
+	local scope = prompt.Parent and prompt.Parent.Parent
+	local added = 0
+
+	if scope then
+		for _, object in ipairs(scope:GetDescendants()) do
+			if added >= 24 then
+				break
+			end
+
+			if object:IsA("TextLabel") or object:IsA("TextButton") then
+				local value = object.Text
+
+				if value and value ~= "" then
+					table.insert(text, value)
+					added += 1
+				end
+			end
+		end
+	end
+
+	return string.lower(table.concat(text, " "))
+end
+
+local function hasWord(text, words)
+	for _, word in ipairs(words) do
+		if string.find(text, string.lower(word), 1, true) then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function firePrompt(prompt)
+	if not prompt or not prompt.Parent or not prompt.Enabled then
+		return false
+	end
+
+	if typeof(fireproximityprompt) == "function" then
+		return pcall(function()
+			fireproximityprompt(prompt)
+		end)
+	end
+
+	return pcall(function()
+		prompt:InputHoldBegin()
+		task.wait(math.max(prompt.HoldDuration, 0.025) + 0.015)
+		prompt:InputHoldEnd()
+	end)
+end
+
+local function usePrompt(prompt, moveToPrompt, returnAfter)
+	if not prompt or not prompt.Parent or not prompt.Enabled then
+		return false
+	end
+
+	local character = getCharacter()
+	local part = promptPart(prompt)
+	local oldPosition
+
+	if moveToPrompt and character and part then
+		oldPosition = character:GetPivot()
+
+		pcall(function()
+			character:PivotTo(part.CFrame * CFrame.new(0, 2.4, 2))
+		end)
+
+		task.wait(0.045)
+	end
+
+	local ok = firePrompt(prompt)
+
+	if returnAfter and oldPosition and character and character.Parent then
+		task.wait(0.035)
+
+		pcall(function()
+			character:PivotTo(oldPosition)
+		end)
+	end
+
+	return ok
+end
+
+local function getWorldSeedPrompts()
+	local prompts = {}
+
+	for _, object in ipairs(workspace:GetDescendants()) do
+		if object:IsA("ProximityPrompt") and object.Enabled then
+			local action = string.lower(object.ActionText or "")
+
+			if string.find(action, "buy", 1, true) then
+				local context = promptContext(object)
+
+				if string.find(context, "seed", 1, true) then
+					table.insert(prompts, object)
+				end
+			end
+		end
+	end
+
+	return prompts
+end
+
 local function buyStock()
+	local physicalSeeds = getWorldSeedPrompts()
+
+	if #physicalSeeds > 0 then
+		for _, prompt in ipairs(physicalSeeds) do
+			if not State.AutoBuy then
+				break
+			end
+
+			usePrompt(prompt, typeof(fireproximityprompt) ~= "function", true)
+			task.wait(0.045)
+		end
+
+		return
+	end
+
 	local remote = getRemote("BuySeedStock")
 
 	if not remote then
@@ -230,89 +372,96 @@ local function buyStock()
 				remote:FireServer(seed.Name)
 			end)
 
-			task.wait(0.07)
+			task.wait(0.055)
 		end
 	end
 end
 
-local function promptPart(prompt)
-	local parent = prompt.Parent
+local function getCollectPrompts()
+	local source = getPlants() or getMyFarm() or workspace
+	local prompts = {}
 
-	while parent do
-		if parent:IsA("BasePart") then
-			return parent
+	for _, object in ipairs(source:GetDescendants()) do
+		if object:IsA("ProximityPrompt") and object.Enabled then
+			local action = string.lower(object.ActionText or "")
+
+			if string.find(action, "collect", 1, true) then
+				table.insert(prompts, object)
+			end
 		end
-
-		parent = parent.Parent
-	end
-end
-
-local function usePrompt(prompt)
-	if not prompt or not prompt.Enabled then
-		return
 	end
 
-	if typeof(fireproximityprompt) == "function" then
-		pcall(function()
-			fireproximityprompt(prompt)
-		end)
-
-		return
-	end
-
-	local character = getCharacter()
-	local part = promptPart(prompt)
-
-	if not character or not part then
-		return
-	end
-
-	pcall(function()
-		character:PivotTo(part.CFrame * CFrame.new(0, 2, 2))
-
-		task.wait(0.035)
-
-		prompt:InputHoldBegin()
-
-		task.wait(math.max(prompt.HoldDuration, 0.04) + 0.025)
-
-		prompt:InputHoldEnd()
-	end)
+	return prompts
 end
 
 local function harvest()
-	local plants = getPlants()
+	local prompts = getCollectPrompts()
 
-	if not plants then
+	if #prompts == 0 then
 		return
 	end
 
 	local character = getCharacter()
-	local oldPosition
+	local root = getRoot()
 
-	if character then
-		oldPosition = character:GetPivot()
+	if not character or not root then
+		return
 	end
 
-	for _, object in ipairs(plants:GetDescendants()) do
+	local oldPosition = character:GetPivot()
+
+	local platform = Instance.new("Part")
+	platform.Name = "GG_HarvestPlatform"
+	platform.Size = Vector3.new(7, 0.65, 7)
+	platform.Anchored = true
+	platform.CanCollide = true
+	platform.CanQuery = false
+	platform.CanTouch = false
+	platform.Material = Enum.Material.SmoothPlastic
+	platform.Color = Theme.Accent
+	platform.Transparency = 0.28
+	platform.CFrame = root.CFrame * CFrame.new(0, -3.2, 0)
+	platform.Parent = workspace
+
+	pcall(function()
+		character:PivotTo(platform.CFrame * CFrame.new(0, 3.2, 0))
+	end)
+
+	local weld = Instance.new("WeldConstraint")
+	weld.Name = "GG_HarvestLock"
+	weld.Part0 = platform
+	weld.Part1 = root
+	weld.Parent = platform
+
+	for _, prompt in ipairs(prompts) do
 		if not State.AutoHarvest then
 			break
 		end
 
-		if object:IsA("ProximityPrompt") and object.Enabled then
-			usePrompt(object)
-			task.wait(0.035)
+		if prompt.Parent and prompt.Enabled then
+			local part = promptPart(prompt)
+
+			if part then
+				platform.CFrame = part.CFrame * CFrame.new(0, -3.1, 0)
+				task.wait(0.025)
+				firePrompt(prompt)
+				task.wait(0.025)
+			end
 		end
 	end
 
-	if typeof(fireproximityprompt) ~= "function" then
-		character = getCharacter()
+	if weld then
+		weld:Destroy()
+	end
 
-		if character and oldPosition then
-			pcall(function()
-				character:PivotTo(oldPosition)
-			end)
-		end
+	if platform then
+		platform:Destroy()
+	end
+
+	if character and character.Parent then
+		pcall(function()
+			character:PivotTo(oldPosition)
+		end)
 	end
 end
 
@@ -337,6 +486,70 @@ local function findPart(object)
 	end
 
 	return object:FindFirstChildWhichIsA("BasePart", true)
+end
+
+local SHOP_TERMS = {
+	Gear = {"gear shop", "gear"},
+	Furniture = {"furniture", "furn"},
+	Market = {"farmers market", "farmer", "market"},
+	Pets = {"pet shop", "pets", "pet"}
+}
+
+local function findShopPrompt(shopName)
+	local terms = SHOP_TERMS[shopName]
+
+	if not terms then
+		return nil
+	end
+
+	local bestPrompt
+	local bestScore = -1
+
+	for _, object in ipairs(workspace:GetDescendants()) do
+		if object:IsA("ProximityPrompt") and object.Enabled then
+			local action = string.lower(object.ActionText or "")
+
+			if string.find(action, "open", 1, true) then
+				local context = promptContext(object)
+				local score = 0
+
+				for index, term in ipairs(terms) do
+					if string.find(context, term, 1, true) then
+						score += (#terms - index + 1) * 3
+					end
+				end
+
+				local objectText = string.lower(object.ObjectText or "")
+				if objectText ~= "" and hasWord(objectText, terms) then
+					score += 8
+				end
+
+				if score > bestScore then
+					bestScore = score
+					bestPrompt = object
+				end
+			end
+	end
+
+	if bestScore <= 0 then
+		return nil
+	end
+
+	return bestPrompt
+end
+
+local function openShop(shopName)
+	local prompt = findShopPrompt(shopName)
+
+	if not prompt then
+		return false
+	end
+
+	if typeof(fireproximityprompt) == "function" then
+		return firePrompt(prompt)
+	end
+
+	return usePrompt(prompt, true, false)
 end
 
 local function sell()
@@ -717,7 +930,7 @@ keySubtitle.Size = UDim2.new(1, -100, 0, 20)
 keySubtitle.Position = UDim2.fromOffset(82, 51)
 keySubtitle.BackgroundTransparency = 1
 keySubtitle.Font = Enum.Font.Gotham
-keySubtitle.Text = "Authentication"
+keySubtitle.Text = "Access"
 keySubtitle.TextColor3 = Theme.SubText
 keySubtitle.TextSize = 12
 keySubtitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -729,7 +942,7 @@ keyDescription.Position = UDim2.fromOffset(22, 91)
 keyDescription.BackgroundTransparency = 1
 keyDescription.Font = Enum.Font.Gotham
 keyDescription.Text =
-	"Enter your access key below to continue."
+	"Paste your key below to continue."
 keyDescription.TextColor3 = Theme.SubText
 keyDescription.TextSize = 13
 keyDescription.TextXAlignment = Enum.TextXAlignment.Left
@@ -761,7 +974,7 @@ unlockButton.BackgroundColor3 = Theme.Accent
 unlockButton.BorderSizePixel = 0
 unlockButton.AutoButtonColor = false
 unlockButton.Font = Enum.Font.GothamSemibold
-unlockButton.Text = "Unlock"
+unlockButton.Text = "Continue"
 unlockButton.TextColor3 = Color3.fromRGB(10, 20, 14)
 unlockButton.TextSize = 13
 unlockButton.Parent = keyWindow
@@ -774,7 +987,7 @@ getKeyButton.BackgroundColor3 = Theme.Card
 getKeyButton.BorderSizePixel = 0
 getKeyButton.AutoButtonColor = false
 getKeyButton.Font = Enum.Font.GothamSemibold
-getKeyButton.Text = "Get Key"
+getKeyButton.Text = "Get Access Key"
 getKeyButton.TextColor3 = Theme.Text
 getKeyButton.TextSize = 13
 getKeyButton.Parent = keyWindow
@@ -1011,6 +1224,7 @@ end
 
 local seedPage = createPage("Seeds")
 local playerPage = createPage("Player")
+local utilityPage = createPage("Utility")
 
 local navButtons = {}
 
@@ -1070,6 +1284,13 @@ createNav(
 	"👤",
 	"Player",
 	"Movement modifications"
+)
+
+createNav(
+	"Utility",
+	"🧰",
+	"Utility",
+	"Quick shop access"
 )
 
 local function section(parent, title)
@@ -1445,6 +1666,48 @@ actionButton(
 	end
 )
 
+section(utilityPage, "Shops")
+
+actionButton(
+	utilityPage,
+	"Open Gear Shop",
+	"Opens the Gear Shop prompt from anywhere.",
+	function()
+		local ok = openShop("Gear")
+		notify("Utility", ok and "Gear Shop opened." or "Gear Shop prompt was not found.")
+	end
+)
+
+actionButton(
+	utilityPage,
+	"Open Furniture",
+	"Opens the Furniture shop prompt.",
+	function()
+		local ok = openShop("Furniture")
+		notify("Utility", ok and "Furniture opened." or "Furniture prompt was not found.")
+	end
+)
+
+actionButton(
+	utilityPage,
+	"Open Farmers Market",
+	"Opens the Farmers Market prompt.",
+	function()
+		local ok = openShop("Market")
+		notify("Utility", ok and "Farmers Market opened." or "Market prompt was not found.")
+	end
+)
+
+actionButton(
+	utilityPage,
+	"Open Pet Shop",
+	"Opens the Pets shop prompt.",
+	function()
+		local ok = openShop("Pets")
+		notify("Utility", ok and "Pet Shop opened." or "Pet Shop prompt was not found.")
+	end
+)
+
 section(playerPage, "Movement")
 
 toggle(
@@ -1565,7 +1828,7 @@ local function copyKeyLink()
 
 		task.delay(1.5, function()
 			if getKeyButton.Parent then
-				getKeyButton.Text = "Get Key"
+				getKeyButton.Text = "Get Access Key"
 			end
 		end)
 	else
@@ -1680,7 +1943,7 @@ task.spawn(function()
 			pcall(buyStock)
 		end
 
-		task.wait(0.8)
+		task.wait(0.45)
 	end
 end)
 
@@ -1690,7 +1953,7 @@ task.spawn(function()
 			pcall(harvest)
 		end
 
-		task.wait(0.35)
+		task.wait(0.14)
 	end
 end)
 
