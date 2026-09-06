@@ -1,3 +1,8 @@
+--========================================================
+-- Gridi Growers
+-- Single LocalScript
+--========================================================
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -6,34 +11,37 @@ local TweenService = game:GetService("TweenService")
 local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
 
+local VirtualInputManager
+
+pcall(function()
+	VirtualInputManager = game:GetService("VirtualInputManager")
+end)
+
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Clean up an older copy instead of returning early.
--- This fixes the key window not appearing when the script is run twice.
+--========================================================
+-- CLEAN OLD VERSION
+--========================================================
+
 if type(_G.GridiGrowersCleanup) == "function" then
 	pcall(_G.GridiGrowersCleanup)
 end
 
-local oldPlayerGui = playerGui:FindFirstChild("GridiGrowers")
-if oldPlayerGui then
-	oldPlayerGui:Destroy()
-end
+_G.GridiGrowersCleanup = nil
 
-if typeof(gethui) == "function" then
-	pcall(function()
-		local hidden = gethui()
-		local oldHiddenGui = hidden and hidden:FindFirstChild("GridiGrowers")
-		if oldHiddenGui then
-			oldHiddenGui:Destroy()
-		end
-	end)
-end
-
-_G.GridiGrowersLoaded = true
+--========================================================
+-- KEY
+--========================================================
 
 local KEY = [[1029peou746s"h1212]]
-local KEY_LINK = "https://link-target.net/3287847/ntYxCXSBfWqQ"
+
+local KEY_LINK =
+	"https://link-target.net/3287847/ntYxCXSBfWqQ"
+
+--========================================================
+-- STATE
+--========================================================
 
 local State = {
 	Unlocked = false,
@@ -42,64 +50,85 @@ local State = {
 	AutoHarvest = false,
 	AutoSell = false,
 
-	Speed = false,
-	WalkSpeed = 45,
+	WalkSpeed = false,
+	WalkSpeedValue = 45,
 
 	Fly = false,
-	FlySpeed = 65,
+	FlySpeed = 70,
 
-	AntiIdle = false
+	AntiAFK = false,
+
+	EmoteSpam = false,
+	EmoteDelay = 0.25,
 }
+
+--========================================================
+-- THEME
+--========================================================
 
 local Theme = {
-	Background = Color3.fromRGB(12, 14, 18),
-	Sidebar = Color3.fromRGB(16, 18, 23),
-	Card = Color3.fromRGB(20, 23, 29),
-	CardHover = Color3.fromRGB(24, 28, 35),
+	Background = Color3.fromRGB(10, 11, 14),
+	Sidebar = Color3.fromRGB(14, 16, 20),
 
-	Accent = Color3.fromRGB(78, 214, 126),
-	AccentDark = Color3.fromRGB(38, 120, 70),
+	Card = Color3.fromRGB(19, 22, 27),
+	CardHover = Color3.fromRGB(24, 27, 33),
+
+	Accent = Color3.fromRGB(86, 220, 132),
+	AccentDark = Color3.fromRGB(28, 61, 41),
 
 	Text = Color3.fromRGB(241, 243, 246),
-	SubText = Color3.fromRGB(145, 151, 164),
-	Stroke = Color3.fromRGB(39, 43, 52),
+	SubText = Color3.fromRGB(135, 140, 152),
 
-	Off = Color3.fromRGB(55, 60, 70),
-	Danger = Color3.fromRGB(220, 76, 76)
+	Stroke = Color3.fromRGB(38, 42, 50),
+	Off = Color3.fromRGB(48, 53, 62),
+
+	Danger = Color3.fromRGB(224, 74, 74),
 }
 
-local function tween(object, time, properties)
+--========================================================
+-- BASIC HELPERS
+--========================================================
+
+local function tween(object, duration, properties)
 	TweenService:Create(
 		object,
-		TweenInfo.new(time, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+		TweenInfo.new(
+			duration,
+			Enum.EasingStyle.Quint,
+			Enum.EasingDirection.Out
+		),
 		properties
 	):Play()
 end
 
 local function corner(object, radius)
-	local ui = Instance.new("UICorner")
-	ui.CornerRadius = UDim.new(0, radius)
-	ui.Parent = object
-	return ui
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius or 8)
+	c.Parent = object
+
+	return c
 end
 
-local function stroke(object, color, thickness, transparency)
-	local ui = Instance.new("UIStroke")
-	ui.Color = color or Theme.Stroke
-	ui.Thickness = thickness or 1
-	ui.Transparency = transparency or 0
-	ui.Parent = object
-	return ui
+local function stroke(object)
+	local s = Instance.new("UIStroke")
+	s.Color = Theme.Stroke
+	s.Thickness = 1
+	s.Parent = object
+
+	return s
 end
 
 local function padding(object, left, right, top, bottom)
-	local ui = Instance.new("UIPadding")
-	ui.PaddingLeft = UDim.new(0, left or 0)
-	ui.PaddingRight = UDim.new(0, right or 0)
-	ui.PaddingTop = UDim.new(0, top or 0)
-	ui.PaddingBottom = UDim.new(0, bottom or 0)
-	ui.Parent = object
-	return ui
+	local p = Instance.new("UIPadding")
+
+	p.PaddingLeft = UDim.new(0, left or 0)
+	p.PaddingRight = UDim.new(0, right or 0)
+	p.PaddingTop = UDim.new(0, top or 0)
+	p.PaddingBottom = UDim.new(0, bottom or 0)
+
+	p.Parent = object
+
+	return p
 end
 
 local function getCharacter()
@@ -122,31 +151,69 @@ local function getRoot()
 	end
 end
 
-local function getEvents()
+local function copyText(text)
+	if typeof(setclipboard) == "function" then
+		local success = pcall(function()
+			setclipboard(text)
+		end)
+
+		if success then
+			return true
+		end
+	end
+
+	if typeof(toclipboard) == "function" then
+		local success = pcall(function()
+			toclipboard(text)
+		end)
+
+		if success then
+			return true
+		end
+	end
+
+	return false
+end
+
+--========================================================
+-- GAME REMOTES
+--========================================================
+
+local function getGameEvents()
 	return ReplicatedStorage:FindFirstChild("GameEvents")
 end
 
 local function getRemote(name)
-	local events = getEvents()
+	local events = getGameEvents()
 
 	if events then
 		return events:FindFirstChild(name)
 	end
 end
 
-local function getMyFarm()
-	local farmFolder =
+--========================================================
+-- FIND PLAYER FARM
+--========================================================
+
+local function getFarm()
+	local farms =
 		workspace:FindFirstChild("Farm")
 		or workspace:FindFirstChild("Farms")
 
-	if not farmFolder then
+	if not farms then
 		return nil
 	end
 
-	for _, farm in ipairs(farmFolder:GetChildren()) do
+	for _, farm in ipairs(farms:GetChildren()) do
 		local important = farm:FindFirstChild("Important")
-		local data = important and important:FindFirstChild("Data")
-		local owner = data and data:FindFirstChild("Owner")
+
+		local data =
+			important
+			and important:FindFirstChild("Data")
+
+		local owner =
+			data
+			and data:FindFirstChild("Owner")
 
 		if owner then
 			local success, value = pcall(function()
@@ -169,7 +236,7 @@ local function getMyFarm()
 end
 
 local function getPlants()
-	local farm = getMyFarm()
+	local farm = getFarm()
 
 	if not farm then
 		return nil
@@ -182,114 +249,55 @@ local function getPlants()
 	end
 end
 
-local function getSeedShop()
-	for _, object in ipairs(playerGui:GetDescendants()) do
-		if object.Name == "Seed_Shop" then
-			return object
-		end
-	end
-end
+--========================================================
+-- PROMPT HELPERS
+--========================================================
 
-local function getSeedsInStock()
-	local shop = getSeedShop()
+local function getPromptPart(prompt)
+	local current = prompt.Parent
 
-	if not shop then
-		return {}
-	end
-
-	local list = {}
-	local found = {}
-
-	for _, frame in ipairs(shop:GetDescendants()) do
-		if frame.Name == "Main_Frame" then
-			local item = frame.Parent
-
-			if item and not found[item] then
-				local stockLabel = frame:FindFirstChild("Stock_Text", true)
-
-				if stockLabel and stockLabel:IsA("TextLabel") then
-					local text = stockLabel.Text or ""
-					local amount = tonumber(text:match("[xX]%s*(%d+)"))
-						or tonumber(text:match("(%d+)"))
-						or 0
-
-					if amount > 0 then
-						found[item] = true
-						table.insert(list, {
-							Name = item.Name,
-							Stock = amount
-						})
-					end
-				end
-			end
-		end
-	end
-
-	return list
-end
-
-local function promptPart(prompt)
-	local parent = prompt.Parent
-
-	while parent do
-		if parent:IsA("BasePart") then
-			return parent
+	while current do
+		if current:IsA("BasePart") then
+			return current
 		end
 
-		parent = parent.Parent
+		current = current.Parent
 	end
+
+	return nil
 end
 
-local function promptContext(prompt)
-	local text = {
-		prompt.ActionText or "",
-		prompt.ObjectText or ""
-	}
+local function promptInformation(prompt)
+	local result = {}
 
-	local node = prompt.Parent
+	table.insert(result, prompt.ActionText or "")
+	table.insert(result, prompt.ObjectText or "")
+
+	local current = prompt.Parent
 	local depth = 0
 
-	while node and node ~= workspace and depth < 8 do
-		table.insert(text, node.Name)
-		node = node.Parent
+	while current and current ~= workspace and depth < 8 do
+		table.insert(result, current.Name)
+
+		current = current.Parent
 		depth += 1
 	end
 
-	local scope = prompt.Parent and prompt.Parent.Parent
-	local added = 0
-
-	if scope then
-		for _, object in ipairs(scope:GetDescendants()) do
-			if added >= 24 then
-				break
-			end
-
-			if object:IsA("TextLabel") or object:IsA("TextButton") then
-				local value = object.Text
-
-				if value and value ~= "" then
-					table.insert(text, value)
-					added += 1
-				end
-			end
-		end
-	end
-
-	return string.lower(table.concat(text, " "))
-end
-
-local function hasWord(text, words)
-	for _, word in ipairs(words) do
-		if string.find(text, string.lower(word), 1, true) then
-			return true
-		end
-	end
-
-	return false
+	return string.lower(
+		table.concat(result, " ")
+	)
 end
 
 local function firePrompt(prompt)
-	if not prompt or not prompt.Parent or not prompt.Enabled then
+	if not prompt then
+		return false
+	end
+
+	if not prompt.Parent then
+		return false
+	end
+
+	if not prompt.Enabled then
 		return false
 	end
 
@@ -301,56 +309,80 @@ local function firePrompt(prompt)
 
 	return pcall(function()
 		prompt:InputHoldBegin()
-		task.wait(math.max(prompt.HoldDuration, 0.025) + 0.015)
+
+		task.wait(
+			math.max(
+				prompt.HoldDuration,
+				0.03
+			) + 0.02
+		)
+
 		prompt:InputHoldEnd()
 	end)
 end
 
-local function usePrompt(prompt, moveToPrompt, returnAfter)
-	if not prompt or not prompt.Parent or not prompt.Enabled then
+local function usePrompt(prompt)
+	if not prompt or not prompt.Parent then
 		return false
 	end
 
-	local character = getCharacter()
-	local part = promptPart(prompt)
-	local oldPosition
-
-	if moveToPrompt and character and part then
-		oldPosition = character:GetPivot()
-
-		pcall(function()
-			character:PivotTo(part.CFrame * CFrame.new(0, 2.4, 2))
-		end)
-
-		task.wait(0.045)
+	if typeof(fireproximityprompt) == "function" then
+		return firePrompt(prompt)
 	end
 
-	local ok = firePrompt(prompt)
+	local character = getCharacter()
+	local part = getPromptPart(prompt)
 
-	if returnAfter and oldPosition and character and character.Parent then
-		task.wait(0.035)
+	if not character or not part then
+		return false
+	end
 
+	local oldPosition = character:GetPivot()
+
+	pcall(function()
+		character:PivotTo(
+			part.CFrame
+				* CFrame.new(0, 2.5, 2)
+		)
+	end)
+
+	task.wait(0.04)
+
+	local success = firePrompt(prompt)
+
+	task.wait(0.03)
+
+	if character and character.Parent then
 		pcall(function()
 			character:PivotTo(oldPosition)
 		end)
 	end
 
-	return ok
+	return success
 end
 
-local function getWorldSeedPrompts()
+--========================================================
+-- AUTO BUY SPAWNED SEEDS
+--========================================================
+
+local function getSpawnedSeedPrompts()
 	local prompts = {}
 
 	for _, object in ipairs(workspace:GetDescendants()) do
-		if object:IsA("ProximityPrompt") and object.Enabled then
-			local action = string.lower(object.ActionText or "")
+		if
+			object:IsA("ProximityPrompt")
+			and object.Enabled
+		then
+			local action =
+				string.lower(object.ActionText or "")
 
-			if string.find(action, "buy", 1, true) then
-				local context = promptContext(object)
+			local info = promptInformation(object)
 
-				if string.find(context, "seed", 1, true) then
-					table.insert(prompts, object)
-				end
+			if
+				string.find(action, "buy", 1, true)
+				and string.find(info, "seed", 1, true)
+			then
+				table.insert(prompts, object)
 			end
 		end
 	end
@@ -358,29 +390,90 @@ local function getWorldSeedPrompts()
 	return prompts
 end
 
-local function buyStock()
-	local physicalSeeds = getWorldSeedPrompts()
+local function autoBuySeeds()
+	local prompts = getSpawnedSeedPrompts()
 
-	if #physicalSeeds > 0 then
-		for _, prompt in ipairs(physicalSeeds) do
+	if #prompts > 0 then
+		for _, prompt in ipairs(prompts) do
 			if not State.AutoBuy then
 				break
 			end
 
-			usePrompt(prompt, typeof(fireproximityprompt) ~= "function", true)
-			task.wait(0.045)
+			if prompt.Parent and prompt.Enabled then
+				usePrompt(prompt)
+				task.wait(0.04)
+			end
 		end
 
 		return
 	end
 
-	local remote = getRemote("BuySeedStock")
+	-- fallback for games using the Grow-a-Garden style remote
 
-	if not remote then
+	local buyRemote = getRemote("BuySeedStock")
+
+	if not buyRemote then
 		return
 	end
 
-	for _, seed in ipairs(getSeedsInStock()) do
+	local seedShop
+
+	for _, object in ipairs(playerGui:GetDescendants()) do
+		if object.Name == "Seed_Shop" then
+			seedShop = object
+			break
+		end
+	end
+
+	if not seedShop then
+		return
+	end
+
+	local seeds = {}
+	local used = {}
+
+	for _, frame in ipairs(seedShop:GetDescendants()) do
+		if frame.Name == "Main_Frame" then
+			local seed = frame.Parent
+
+			if seed and not used[seed] then
+				local stock =
+					frame:FindFirstChild(
+						"Stock_Text",
+						true
+					)
+
+				if
+					stock
+					and stock:IsA("TextLabel")
+				then
+					local text = stock.Text or ""
+
+					local amount =
+						tonumber(
+							text:match(
+								"[xX]%s*(%d+)"
+							)
+						)
+						or tonumber(
+							text:match("(%d+)")
+						)
+						or 0
+
+					if amount > 0 then
+						used[seed] = true
+
+						table.insert(seeds, {
+							Name = seed.Name,
+							Stock = amount,
+						})
+					end
+				end
+			end
+		end
+	end
+
+	for _, seed in ipairs(seeds) do
 		if not State.AutoBuy then
 			break
 		end
@@ -391,23 +484,45 @@ local function buyStock()
 			end
 
 			pcall(function()
-				remote:FireServer(seed.Name)
+				buyRemote:FireServer(seed.Name)
 			end)
 
-			task.wait(0.055)
+			task.wait(0.05)
 		end
 	end
 end
 
+--========================================================
+-- FAST AUTO HARVEST
+--========================================================
+
 local function getCollectPrompts()
-	local source = getPlants() or getMyFarm() or workspace
+	local farm = getFarm()
+	local plants = getPlants()
+
+	local source =
+		plants
+		or farm
+		or workspace
+
 	local prompts = {}
 
 	for _, object in ipairs(source:GetDescendants()) do
-		if object:IsA("ProximityPrompt") and object.Enabled then
-			local action = string.lower(object.ActionText or "")
+		if
+			object:IsA("ProximityPrompt")
+			and object.Enabled
+		then
+			local action =
+				string.lower(object.ActionText or "")
 
-			if string.find(action, "collect", 1, true) then
+			if
+				string.find(
+					action,
+					"collect",
+					1,
+					true
+				)
+			then
 				table.insert(prompts, object)
 			end
 		end
@@ -416,7 +531,7 @@ local function getCollectPrompts()
 	return prompts
 end
 
-local function harvest()
+local function harvestAll()
 	local prompts = getCollectPrompts()
 
 	if #prompts == 0 then
@@ -433,27 +548,25 @@ local function harvest()
 	local oldPosition = character:GetPivot()
 
 	local platform = Instance.new("Part")
-	platform.Name = "GG_HarvestPlatform"
-	platform.Size = Vector3.new(7, 0.65, 7)
+
+	platform.Name = "GridiHarvestPlatform"
+
+	platform.Size = Vector3.new(
+		6,
+		0.5,
+		6
+	)
+
 	platform.Anchored = true
 	platform.CanCollide = true
-	platform.CanQuery = false
+
 	platform.CanTouch = false
-	platform.Material = Enum.Material.SmoothPlastic
+	platform.CanQuery = false
+
+	platform.Transparency = 0.3
 	platform.Color = Theme.Accent
-	platform.Transparency = 0.28
-	platform.CFrame = root.CFrame * CFrame.new(0, -3.2, 0)
+
 	platform.Parent = workspace
-
-	pcall(function()
-		character:PivotTo(platform.CFrame * CFrame.new(0, 3.2, 0))
-	end)
-
-	local weld = Instance.new("WeldConstraint")
-	weld.Name = "GG_HarvestLock"
-	weld.Part0 = platform
-	weld.Part1 = root
-	weld.Parent = platform
 
 	for _, prompt in ipairs(prompts) do
 		if not State.AutoHarvest then
@@ -461,19 +574,35 @@ local function harvest()
 		end
 
 		if prompt.Parent and prompt.Enabled then
-			local part = promptPart(prompt)
+			local part = getPromptPart(prompt)
 
 			if part then
-				platform.CFrame = part.CFrame * CFrame.new(0, -3.1, 0)
-				task.wait(0.025)
+				platform.CFrame =
+					part.CFrame
+					* CFrame.new(
+						0,
+						-3,
+						0
+					)
+
+				pcall(function()
+					character:PivotTo(
+						platform.CFrame
+							* CFrame.new(
+								0,
+								3.2,
+								0
+							)
+					)
+				end)
+
+				task.wait(0.015)
+
 				firePrompt(prompt)
+
 				task.wait(0.025)
 			end
 		end
-	end
-
-	if weld then
-		weld:Destroy()
 	end
 
 	if platform then
@@ -487,145 +616,84 @@ local function harvest()
 	end
 end
 
-local function findSeller()
-	return workspace:FindFirstChild("Steven", true)
-end
+--========================================================
+-- SELL
+--========================================================
 
-local function findPart(object)
-	if not object then
-		return nil
-	end
-
-	if object:IsA("BasePart") then
-		return object
-	end
-
-	if object:IsA("Model") then
-		return object.PrimaryPart
-			or object:FindFirstChild("HumanoidRootPart")
-			or object:FindFirstChild("Head")
-			or object:FindFirstChildWhichIsA("BasePart", true)
-	end
-
-	return object:FindFirstChildWhichIsA("BasePart", true)
-end
-
-local SHOP_TERMS = {
-	Gear = {"gear shop", "gear"},
-	Furniture = {"furniture", "furn"},
-	Market = {"farmers market", "farmer", "market"},
-	Pets = {"pet shop", "pets", "pet"}
-}
-
-local function findShopPrompt(shopName)
-	local terms = SHOP_TERMS[shopName]
-
-	if not terms then
-		return nil
-	end
-
-	local bestPrompt
-	local bestScore = -1
-
+local function findSellPrompt()
 	for _, object in ipairs(workspace:GetDescendants()) do
-		if object:IsA("ProximityPrompt") and object.Enabled then
-			local action = string.lower(object.ActionText or "")
+		if
+			object:IsA("ProximityPrompt")
+			and object.Enabled
+		then
+			local info = promptInformation(object)
 
-			if string.find(action, "open", 1, true) then
-				local context = promptContext(object)
-				local score = 0
-
-				for index, term in ipairs(terms) do
-					if string.find(context, term, 1, true) then
-						score += (#terms - index + 1) * 3
-					end
-				end
-
-				local objectText = string.lower(object.ObjectText or "")
-				if objectText ~= "" and hasWord(objectText, terms) then
-					score += 8
-				end
-
-				if score > bestScore then
-					bestScore = score
-					bestPrompt = object
-				end
+			if
+				string.find(info, "sell", 1, true)
+				and (
+					string.find(
+						info,
+						"inventory",
+						1,
+						true
+					)
+					or string.find(
+						info,
+						"market",
+						1,
+						true
+					)
+				)
+			then
+				return object
 			end
+		end
 	end
-
-	if bestScore <= 0 then
-		return nil
-	end
-
-	return bestPrompt
 end
 
-local function openShop(shopName)
-	local prompt = findShopPrompt(shopName)
+local function sellInventory()
+	local sellRemote =
+		getRemote("Sell_Inventory")
 
-	if not prompt then
-		return false
-	end
-
-	if typeof(fireproximityprompt) == "function" then
-		return firePrompt(prompt)
-	end
-
-	return usePrompt(prompt, true, false)
-end
-
-local function sell()
-	local remote = getRemote("Sell_Inventory")
-
-	if not remote then
-		return
-	end
-
-	local character = getCharacter()
-	local oldPosition
-
-	if character then
-		oldPosition = character:GetPivot()
-	end
-
-	local seller = findSeller()
-	local sellerPart = findPart(seller)
-
-	if character and sellerPart then
+	if sellRemote then
 		pcall(function()
-			character:PivotTo(
-				sellerPart.CFrame * CFrame.new(0, 0, -4)
-			)
+			sellRemote:FireServer()
 		end)
 
-		task.wait(0.08)
+		return true
 	end
 
-	pcall(function()
-		remote:FireServer()
-	end)
+	local prompt = findSellPrompt()
 
-	task.wait(0.08)
-
-	if character and oldPosition then
-		pcall(function()
-			character:PivotTo(oldPosition)
-		end)
+	if prompt then
+		return usePrompt(prompt)
 	end
+
+	return false
 end
 
-local defaultWalkSpeed = 16
+--========================================================
+-- SPEED
+--========================================================
 
-local function updateWalkSpeed()
+local function applyWalkSpeed()
 	local humanoid = getHumanoid()
 
 	if not humanoid then
 		return
 	end
 
-	humanoid.WalkSpeed =
-		State.Speed and State.WalkSpeed or defaultWalkSpeed
+	if State.WalkSpeed then
+		humanoid.WalkSpeed =
+			State.WalkSpeedValue
+	else
+		humanoid.WalkSpeed = 16
+	end
 end
+
+--========================================================
+-- FLY
+--========================================================
 
 local flyVelocity
 local flyGyro
@@ -673,140 +741,333 @@ local function startFly()
 	humanoid.AutoRotate = false
 
 	flyVelocity = Instance.new("BodyVelocity")
-	flyVelocity.Name = "GG_FlyVelocity"
+
 	flyVelocity.MaxForce = Vector3.new(
 		math.huge,
 		math.huge,
 		math.huge
 	)
+
 	flyVelocity.P = 30000
 	flyVelocity.Velocity = Vector3.zero
 	flyVelocity.Parent = root
 
 	flyGyro = Instance.new("BodyGyro")
-	flyGyro.Name = "GG_FlyGyro"
+
 	flyGyro.MaxTorque = Vector3.new(
 		math.huge,
 		math.huge,
 		math.huge
 	)
+
 	flyGyro.P = 30000
 	flyGyro.CFrame = root.CFrame
 	flyGyro.Parent = root
 
-	flyConnection = RunService.RenderStepped:Connect(function()
-		if not State.Fly then
-			stopFly()
-			return
-		end
+	flyConnection =
+		RunService.RenderStepped:Connect(function()
 
-		root = getRoot()
-		humanoid = getHumanoid()
+			if not State.Fly then
+				stopFly()
+				return
+			end
 
-		if not root or not humanoid then
-			return
-		end
+			root = getRoot()
+			humanoid = getHumanoid()
 
-		if flyVelocity.Parent ~= root then
-			startFly()
-			return
-		end
+			if not root or not humanoid then
+				return
+			end
 
-		local vertical = 0
+			if
+				not flyVelocity
+				or flyVelocity.Parent ~= root
+			then
+				startFly()
+				return
+			end
 
-		if
-			UserInputService:IsKeyDown(Enum.KeyCode.Space)
-			or UserInputService:IsKeyDown(Enum.KeyCode.E)
-		then
-			vertical += 1
-		end
+			local vertical = 0
 
-		if
-			UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
-			or UserInputService:IsKeyDown(Enum.KeyCode.Q)
-		then
-			vertical -= 1
-		end
+			if
+				UserInputService:IsKeyDown(
+					Enum.KeyCode.Space
+				)
+				or UserInputService:IsKeyDown(
+					Enum.KeyCode.E
+				)
+			then
+				vertical += 1
+			end
 
-		local move = humanoid.MoveDirection
+			if
+				UserInputService:IsKeyDown(
+					Enum.KeyCode.LeftControl
+				)
+				or UserInputService:IsKeyDown(
+					Enum.KeyCode.Q
+				)
+			then
+				vertical -= 1
+			end
 
-		local direction = Vector3.new(
-			move.X,
-			vertical,
-			move.Z
-		)
+			local move =
+				humanoid.MoveDirection
 
-		if direction.Magnitude > 1 then
-			direction = direction.Unit
-		end
-
-		flyVelocity.Velocity =
-			direction * State.FlySpeed
-
-		local camera = workspace.CurrentCamera
-
-		if camera then
-			local look = camera.CFrame.LookVector
-
-			local flat = Vector3.new(
-				look.X,
-				0,
-				look.Z
+			local direction = Vector3.new(
+				move.X,
+				vertical,
+				move.Z
 			)
 
-			if flat.Magnitude > 0.01 then
-				flyGyro.CFrame = CFrame.lookAt(
-					root.Position,
-					root.Position + flat
+			if direction.Magnitude > 1 then
+				direction = direction.Unit
+			end
+
+			flyVelocity.Velocity =
+				direction
+				* State.FlySpeed
+
+			local camera =
+				workspace.CurrentCamera
+
+			if camera then
+				local look =
+					camera.CFrame.LookVector
+
+				local flat = Vector3.new(
+					look.X,
+					0,
+					look.Z
 				)
+
+				if flat.Magnitude > 0.01 then
+					flyGyro.CFrame =
+						CFrame.lookAt(
+							root.Position,
+							root.Position
+								+ flat
+						)
+				end
+			end
+		end)
+end
+
+--========================================================
+-- SHOP OPENER
+--========================================================
+
+local function findShopPrompt(words)
+	for _, prompt in ipairs(workspace:GetDescendants()) do
+		if
+			prompt:IsA("ProximityPrompt")
+			and prompt.Enabled
+		then
+			local action =
+				string.lower(prompt.ActionText or "")
+
+			if
+				string.find(
+					action,
+					"open",
+					1,
+					true
+				)
+				or action == ""
+			then
+				local info =
+					promptInformation(prompt)
+
+				local correct = true
+
+				for _, word in ipairs(words) do
+					if
+						not string.find(
+							info,
+							string.lower(word),
+							1,
+							true
+						)
+					then
+						correct = false
+						break
+					end
+				end
+
+				if correct then
+					return prompt
+				end
 			end
 		end
-	end)
+	end
 end
 
-local function rejoinServer()
-	local success, err = pcall(function()
-		if game.JobId ~= "" then
-			TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
-		else
-			TeleportService:Teleport(game.PlaceId, player)
-		end
-	end)
+local function openShop(name)
+	local searches = {
+		Gear = {
+			{"gear", "shop"},
+			{"gear"},
+		},
 
-	return success, err
-end
+		Furniture = {
+			{"furniture"},
+		},
 
-local function leaveServer()
-	pcall(function()
-		player:Kick("Left using Gridi Growers")
-	end)
-end
+		Market = {
+			{"farmers", "market"},
+			{"farmer", "market"},
+			{"market"},
+		},
 
-local function resetCharacter()
-	local humanoid = getHumanoid()
-	if not humanoid then
+		Pets = {
+			{"pet", "shop"},
+			{"pets"},
+			{"pet"},
+		},
+	}
+
+	local list = searches[name]
+
+	if not list then
 		return false
 	end
 
-	humanoid.Health = 0
+	for _, words in ipairs(list) do
+		local prompt = findShopPrompt(words)
+
+		if prompt then
+			return usePrompt(prompt)
+		end
+	end
+
+	return false
+end
+
+--========================================================
+-- EMOTE SPAMMER
+--========================================================
+
+local function guiVisible(object)
+	local current = object
+
+	while current do
+		if
+			current:IsA("GuiObject")
+			and not current.Visible
+		then
+			return false
+		end
+
+		if current == playerGui then
+			break
+		end
+
+		current = current.Parent
+	end
+
 	return true
 end
 
-local function copyText(text)
-	if typeof(setclipboard) == "function" then
-		local ok = pcall(function()
-			setclipboard(text)
+local function guiText(object)
+	local result = {}
+
+	table.insert(result, object.Name)
+
+	if
+		object:IsA("TextLabel")
+		or object:IsA("TextButton")
+		or object:IsA("TextBox")
+	then
+		table.insert(
+			result,
+			object.Text or ""
+		)
+	end
+
+	for _, child in ipairs(object:GetDescendants()) do
+		if
+			child:IsA("TextLabel")
+			or child:IsA("TextButton")
+		then
+			if child.Text ~= "" then
+				table.insert(
+					result,
+					child.Text
+				)
+			end
+		end
+	end
+
+	return string.lower(
+		table.concat(result, " ")
+	)
+end
+
+local function pressGuiButton(button)
+	if not button or not button.Parent then
+		return false
+	end
+
+	if typeof(firesignal) == "function" then
+		local success = pcall(function()
+			firesignal(button.Activated)
 		end)
-		if ok then
+
+		if success then
+			return true
+		end
+
+		success = pcall(function()
+			firesignal(
+				button.MouseButton1Click
+			)
+		end)
+
+		if success then
 			return true
 		end
 	end
 
-	if typeof(toclipboard) == "function" then
-		local ok = pcall(function()
-			toclipboard(text)
+	if VirtualInputManager then
+		local position =
+			button.AbsolutePosition
+
+		local size =
+			button.AbsoluteSize
+
+		local x =
+			position.X
+			+ (size.X / 2)
+
+		local y =
+			position.Y
+			+ (size.Y / 2)
+
+		local success = pcall(function()
+			VirtualInputManager:
+				SendMouseButtonEvent(
+					x,
+					y,
+					0,
+					true,
+					game,
+					0
+				)
+
+			task.wait(0.02)
+
+			VirtualInputManager:
+				SendMouseButtonEvent(
+					x,
+					y,
+					0,
+					false,
+					game,
+					0
+				)
 		end)
-		if ok then
+
+		if success then
 			return true
 		end
 	end
@@ -814,53 +1075,504 @@ local function copyText(text)
 	return false
 end
 
-local antiIdleConnection = player.Idled:Connect(function()
-	if not State.AntiIdle then
-		return
+local function findOpenEmotesButton()
+	local best
+
+	for _, object in ipairs(playerGui:GetDescendants()) do
+		if
+			object:IsA("GuiButton")
+			and guiVisible(object)
+		then
+			local text = guiText(object)
+
+			if
+				string.find(
+					text,
+					"emotes",
+					1,
+					true
+				)
+			then
+				best = object
+				break
+			end
+		end
 	end
 
-	pcall(function()
-		VirtualUser:CaptureController()
-		local camera = workspace.CurrentCamera
-		local cameraCFrame = camera and camera.CFrame or CFrame.new()
-		VirtualUser:Button2Down(Vector2.new(0, 0), cameraCFrame)
-		task.wait(0.08)
-		VirtualUser:Button2Up(Vector2.new(0, 0), cameraCFrame)
-	end)
-end)
+	return best
+end
 
-local screen = Instance.new("ScreenGui")
-screen.Name = "GridiGrowers"
-screen.ResetOnSpawn = false
-screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screen.IgnoreGuiInset = true
-screen.DisplayOrder = 999999
-screen.Enabled = true
+local function openEmotesMenu()
+	local button =
+		findOpenEmotesButton()
+
+	if button then
+		return pressGuiButton(button)
+	end
+
+	return false
+end
+
+local function findEmotePanel()
+	local best
+	local bestButtonCount = math.huge
+
+	for _, object in ipairs(playerGui:GetDescendants()) do
+		local isText =
+			object:IsA("TextLabel")
+			or object:IsA("TextButton")
+
+		if
+			isText
+			and guiVisible(object)
+		then
+			local text =
+				string.lower(object.Text or "")
+
+			if
+				string.find(
+					text,
+					"emotes",
+					1,
+					true
+				)
+			then
+				local parent = object.Parent
+				local depth = 0
+
+				while
+					parent
+					and parent ~= playerGui
+					and depth < 6
+				do
+					local buttons = 0
+
+					for _, item in ipairs(
+						parent:GetDescendants()
+					) do
+						if
+							item:IsA("GuiButton")
+							and guiVisible(item)
+						then
+							buttons += 1
+						end
+					end
+
+					if
+						buttons >= 4
+						and buttons < bestButtonCount
+					then
+						best = parent
+						bestButtonCount = buttons
+					end
+
+					if parent:IsA("ScreenGui") then
+						break
+					end
+
+					parent = parent.Parent
+					depth += 1
+				end
+			end
+		end
+	end
+
+	return best
+end
+
+local function getEmoteButtons()
+	local panel = findEmotePanel()
+
+	if not panel then
+		return {}
+	end
+
+	local buttons = {}
+
+	for _, object in ipairs(panel:GetDescendants()) do
+		if
+			object:IsA("GuiButton")
+			and guiVisible(object)
+		then
+			local text = guiText(object)
+
+			-- Don't click the menu's title/open buttons.
+			if
+				not string.find(
+					text,
+					"pets",
+					1,
+					true
+				)
+				and not (
+					string.find(
+						text,
+						"emotes",
+						1,
+						true
+					)
+					and (
+						object:IsA("TextButton")
+						and object.Text ~= ""
+					)
+				)
+			then
+				table.insert(
+					buttons,
+					object
+				)
+			end
+		end
+	end
+
+	table.sort(buttons, function(a, b)
+		local ay = a.AbsolutePosition.Y
+		local by = b.AbsolutePosition.Y
+
+		if math.abs(ay - by) > 5 then
+			return ay < by
+		end
+
+		return
+			a.AbsolutePosition.X
+			< b.AbsolutePosition.X
+	end)
+
+	return buttons
+end
+
+local currentEmote = 0
+
+local function sendNextEmote()
+	local buttons = getEmoteButtons()
+
+	if #buttons == 0 then
+		openEmotesMenu()
+
+		task.wait(0.15)
+
+		buttons = getEmoteButtons()
+	end
+
+	if #buttons == 0 then
+		return false
+	end
+
+	currentEmote += 1
+
+	if currentEmote > #buttons then
+		currentEmote = 1
+	end
+
+	local button =
+		buttons[currentEmote]
+
+	return pressGuiButton(button)
+end
+
+--========================================================
+-- ANTI AFK
+--========================================================
+
+local idleConnection
+
+idleConnection =
+	player.Idled:Connect(function()
+
+		if not State.AntiAFK then
+			return
+		end
+
+		pcall(function()
+			VirtualUser:CaptureController()
+
+			VirtualUser:Button2Down(
+				Vector2.new(0, 0),
+				workspace.CurrentCamera.CFrame
+			)
+
+			task.wait(0.1)
+
+			VirtualUser:Button2Up(
+				Vector2.new(0, 0),
+				workspace.CurrentCamera.CFrame
+			)
+		end)
+	end)
+
+--========================================================
+-- REJOIN / LEAVE
+--========================================================
+
+local function rejoin()
+	pcall(function()
+		if game.JobId ~= "" then
+			TeleportService:
+				TeleportToPlaceInstance(
+					game.PlaceId,
+					game.JobId,
+					player
+				)
+		else
+			TeleportService:Teleport(
+				game.PlaceId,
+				player
+			)
+		end
+	end)
+end
+
+local function leave()
+	pcall(function()
+		player:Kick("Left the server.")
+	end)
+end
+
+local function resetCharacter()
+	local humanoid = getHumanoid()
+
+	if humanoid then
+		humanoid.Health = 0
+	end
+end
+
+--========================================================
+-- GUI
+--========================================================
+
+local Screen = Instance.new("ScreenGui")
+
+Screen.Name = "GridiGrowers"
+Screen.ResetOnSpawn = false
+Screen.IgnoreGuiInset = true
+Screen.DisplayOrder = 999999
+Screen.ZIndexBehavior =
+	Enum.ZIndexBehavior.Sibling
+
+local parent = playerGui
 
 if typeof(gethui) == "function" then
 	local success, result = pcall(gethui)
 
 	if success and result then
-		screen.Parent = result
-	else
-		screen.Parent = playerGui
+		parent = result
 	end
-else
-	screen.Parent = playerGui
 end
+
+local old = parent:FindFirstChild("GridiGrowers")
+
+if old then
+	old:Destroy()
+end
+
+Screen.Parent = parent
+
+--========================================================
+-- NOTIFICATIONS
+--========================================================
+
+local NotificationHolder =
+	Instance.new("Frame")
+
+NotificationHolder.Size =
+	UDim2.fromOffset(280, 450)
+
+NotificationHolder.Position =
+	UDim2.new(
+		1,
+		-300,
+		0,
+		20
+	)
+
+NotificationHolder.BackgroundTransparency = 1
+NotificationHolder.Parent = Screen
+
+local NotificationLayout =
+	Instance.new("UIListLayout")
+
+NotificationLayout.Padding =
+	UDim.new(0, 7)
+
+NotificationLayout.HorizontalAlignment =
+	Enum.HorizontalAlignment.Right
+
+NotificationLayout.Parent =
+	NotificationHolder
+
+local function notify(title, text)
+	local card = Instance.new("Frame")
+
+	card.Size =
+		UDim2.fromOffset(
+			275,
+			61
+		)
+
+	card.BackgroundColor3 =
+		Theme.Card
+
+	card.BorderSizePixel = 0
+
+	card.Parent =
+		NotificationHolder
+
+	corner(card, 8)
+	stroke(card)
+
+	local line = Instance.new("Frame")
+
+	line.Size =
+		UDim2.fromOffset(
+			3,
+			32
+		)
+
+	line.Position =
+		UDim2.fromOffset(
+			0,
+			14
+		)
+
+	line.BackgroundColor3 =
+		Theme.Accent
+
+	line.BorderSizePixel = 0
+
+	line.Parent = card
+
+	corner(line, 3)
+
+	local heading =
+		Instance.new("TextLabel")
+
+	heading.Size =
+		UDim2.new(
+			1,
+			-28,
+			0,
+			18
+		)
+
+	heading.Position =
+		UDim2.fromOffset(
+			15,
+			10
+		)
+
+	heading.BackgroundTransparency = 1
+
+	heading.Font =
+		Enum.Font.GothamSemibold
+
+	heading.Text = title
+
+	heading.TextColor3 =
+		Theme.Text
+
+	heading.TextSize = 11
+
+	heading.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	heading.Parent = card
+
+	local body =
+		Instance.new("TextLabel")
+
+	body.Size =
+		UDim2.new(
+			1,
+			-28,
+			0,
+			18
+		)
+
+	body.Position =
+		UDim2.fromOffset(
+			15,
+			31
+		)
+
+	body.BackgroundTransparency = 1
+
+	body.Font =
+		Enum.Font.Gotham
+
+	body.Text = text
+
+	body.TextColor3 =
+		Theme.SubText
+
+	body.TextSize = 9
+
+	body.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	body.TextTruncate =
+		Enum.TextTruncate.AtEnd
+
+	body.Parent = card
+
+	card.Position =
+		UDim2.fromOffset(
+			30,
+			0
+		)
+
+	card.BackgroundTransparency = 1
+
+	tween(card, 0.25, {
+		Position =
+			UDim2.fromOffset(
+				0,
+				0
+			),
+
+		BackgroundTransparency = 0,
+	})
+
+	task.delay(3, function()
+		if not card.Parent then
+			return
+		end
+
+		tween(card, 0.2, {
+			Position =
+				UDim2.fromOffset(
+					30,
+					0
+				),
+
+			BackgroundTransparency = 1,
+		})
+
+		task.wait(0.22)
+
+		if card then
+			card:Destroy()
+		end
+	end)
+end
+
+--========================================================
+-- DRAG
+--========================================================
 
 local function makeDraggable(frame, handle)
 	local dragging = false
-	local dragStart
+	local startMouse
 	local startPosition
 
 	handle.InputBegan:Connect(function(input)
 		if
-			input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch
+			input.UserInputType
+				== Enum.UserInputType.MouseButton1
+			or input.UserInputType
+				== Enum.UserInputType.Touch
 		then
 			dragging = true
-			dragStart = input.Position
+			startMouse = input.Position
 			startPosition = frame.Position
 		end
 	end)
@@ -871,502 +1583,1119 @@ local function makeDraggable(frame, handle)
 		end
 
 		if
-			input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch
+			input.UserInputType
+				== Enum.UserInputType.MouseMovement
+			or input.UserInputType
+				== Enum.UserInputType.Touch
 		then
-			local delta = input.Position - dragStart
+			local delta =
+				input.Position
+				- startMouse
 
-			frame.Position = UDim2.new(
-				startPosition.X.Scale,
-				startPosition.X.Offset + delta.X,
-				startPosition.Y.Scale,
-				startPosition.Y.Offset + delta.Y
-			)
+			frame.Position =
+				UDim2.new(
+					startPosition.X.Scale,
+					startPosition.X.Offset
+						+ delta.X,
+
+					startPosition.Y.Scale,
+					startPosition.Y.Offset
+						+ delta.Y
+				)
 		end
 	end)
 
 	UserInputService.InputEnded:Connect(function(input)
 		if
-			input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch
+			input.UserInputType
+				== Enum.UserInputType.MouseButton1
+			or input.UserInputType
+				== Enum.UserInputType.Touch
 		then
 			dragging = false
 		end
 	end)
 end
 
-local notifications = Instance.new("Frame")
-notifications.Name = "Notifications"
-notifications.Size = UDim2.fromOffset(280, 400)
-notifications.Position = UDim2.new(1, -300, 0, 20)
-notifications.BackgroundTransparency = 1
-notifications.Parent = screen
+--========================================================
+-- KEY WINDOW
+--========================================================
 
-local notifyLayout = Instance.new("UIListLayout")
-notifyLayout.Padding = UDim.new(0, 8)
-notifyLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-notifyLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-notifyLayout.Parent = notifications
+local KeyWindow = Instance.new("Frame")
 
-local function notify(title, text)
-	local card = Instance.new("Frame")
-	card.Size = UDim2.fromOffset(275, 0)
-	card.AutomaticSize = Enum.AutomaticSize.Y
-	card.BackgroundColor3 = Theme.Card
-	card.BackgroundTransparency = 0.03
-	card.BorderSizePixel = 0
-	card.Parent = notifications
+KeyWindow.Size =
+	UDim2.fromOffset(
+		430,
+		290
+	)
 
-	corner(card, 9)
-	stroke(card)
+KeyWindow.Position =
+	UDim2.new(
+		0.5,
+		-215,
+		0.5,
+		-145
+	)
 
-	padding(card, 14, 14, 11, 11)
+KeyWindow.BackgroundColor3 =
+	Theme.Background
 
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 3)
-	layout.Parent = card
+KeyWindow.BorderSizePixel = 0
+KeyWindow.Visible = true
+KeyWindow.Parent = Screen
 
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Size = UDim2.new(1, 0, 0, 18)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Font = Enum.Font.GothamSemibold
-	titleLabel.Text = title
-	titleLabel.TextColor3 = Theme.Text
-	titleLabel.TextSize = 13
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = card
+corner(KeyWindow, 11)
+stroke(KeyWindow)
 
-	local textLabel = Instance.new("TextLabel")
-	textLabel.Size = UDim2.new(1, 0, 0, 18)
-	textLabel.AutomaticSize = Enum.AutomaticSize.Y
-	textLabel.BackgroundTransparency = 1
-	textLabel.Font = Enum.Font.Gotham
-	textLabel.Text = text
-	textLabel.TextWrapped = true
-	textLabel.TextColor3 = Theme.SubText
-	textLabel.TextSize = 12
-	textLabel.TextXAlignment = Enum.TextXAlignment.Left
-	textLabel.Parent = card
+local KeyAccent = Instance.new("Frame")
 
-	card.Position = UDim2.fromOffset(30, 0)
-	card.BackgroundTransparency = 1
+KeyAccent.Size =
+	UDim2.new(
+		1,
+		0,
+		0,
+		3
+	)
 
-	tween(card, 0.3, {
-		Position = UDim2.fromOffset(0, 0),
-		BackgroundTransparency = 0.03
-	})
+KeyAccent.BackgroundColor3 =
+	Theme.Accent
 
-	task.delay(3, function()
-		if not card.Parent then
-			return
-		end
+KeyAccent.BorderSizePixel = 0
+KeyAccent.Parent = KeyWindow
 
-		tween(card, 0.25, {
-			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(30, 0)
-		})
+local KeyHeader = Instance.new("Frame")
 
-		task.wait(0.28)
+KeyHeader.Size =
+	UDim2.new(
+		1,
+		0,
+		0,
+		76
+	)
 
-		if card then
-			card:Destroy()
-		end
-	end)
-end
+KeyHeader.BackgroundTransparency = 1
+KeyHeader.Parent = KeyWindow
 
-local keyWindow = Instance.new("Frame")
-keyWindow.Name = "AccessWindow"
-keyWindow.Size = UDim2.fromOffset(430, 310)
-keyWindow.Position = UDim2.new(0.5, -215, 0.5, -155)
-keyWindow.BackgroundColor3 = Theme.Background
-keyWindow.BorderSizePixel = 0
-keyWindow.Visible = true
-keyWindow.ZIndex = 50
-keyWindow.Parent = screen
+local KeyLogo = Instance.new("Frame")
 
-corner(keyWindow, 14)
-stroke(keyWindow)
+KeyLogo.Size =
+	UDim2.fromOffset(
+		40,
+		40
+	)
 
-local keyGlow = Instance.new("Frame")
-keyGlow.Size = UDim2.fromOffset(44, 4)
-keyGlow.Position = UDim2.fromOffset(22, 0)
-keyGlow.BackgroundColor3 = Theme.Accent
-keyGlow.BorderSizePixel = 0
-keyGlow.Parent = keyWindow
-corner(keyGlow, 4)
+KeyLogo.Position =
+	UDim2.fromOffset(
+		20,
+		19
+	)
 
-local keyLogo = Instance.new("TextLabel")
-keyLogo.Size = UDim2.fromOffset(46, 46)
-keyLogo.Position = UDim2.fromOffset(22, 25)
-keyLogo.BackgroundColor3 = Color3.fromRGB(29, 58, 41)
-keyLogo.BorderSizePixel = 0
-keyLogo.Font = Enum.Font.GothamBold
-keyLogo.Text = "G"
-keyLogo.TextColor3 = Theme.Accent
-keyLogo.TextSize = 22
-keyLogo.Parent = keyWindow
-corner(keyLogo, 11)
+KeyLogo.BackgroundColor3 =
+	Theme.AccentDark
 
-local keyTitle = Instance.new("TextLabel")
-keyTitle.Size = UDim2.new(1, -100, 0, 24)
-keyTitle.Position = UDim2.fromOffset(82, 27)
-keyTitle.BackgroundTransparency = 1
-keyTitle.Font = Enum.Font.GothamBold
-keyTitle.Text = "Gridi Growers"
-keyTitle.TextColor3 = Theme.Text
-keyTitle.TextSize = 18
-keyTitle.TextXAlignment = Enum.TextXAlignment.Left
-keyTitle.Parent = keyWindow
+KeyLogo.BorderSizePixel = 0
+KeyLogo.Parent = KeyHeader
 
-local keySubtitle = Instance.new("TextLabel")
-keySubtitle.Size = UDim2.new(1, -100, 0, 20)
-keySubtitle.Position = UDim2.fromOffset(82, 51)
-keySubtitle.BackgroundTransparency = 1
-keySubtitle.Font = Enum.Font.Gotham
-keySubtitle.Text = "Access"
-keySubtitle.TextColor3 = Theme.SubText
-keySubtitle.TextSize = 12
-keySubtitle.TextXAlignment = Enum.TextXAlignment.Left
-keySubtitle.Parent = keyWindow
+corner(KeyLogo, 9)
 
-local keyDescription = Instance.new("TextLabel")
-keyDescription.Size = UDim2.new(1, -44, 0, 38)
-keyDescription.Position = UDim2.fromOffset(22, 91)
-keyDescription.BackgroundTransparency = 1
-keyDescription.Font = Enum.Font.Gotham
-keyDescription.Text =
-	"Paste your key below to continue."
-keyDescription.TextColor3 = Theme.SubText
-keyDescription.TextSize = 13
-keyDescription.TextXAlignment = Enum.TextXAlignment.Left
-keyDescription.Parent = keyWindow
+local KeyLogoText =
+	Instance.new("TextLabel")
 
-local keyBox = Instance.new("TextBox")
-keyBox.Size = UDim2.new(1, -44, 0, 46)
-keyBox.Position = UDim2.fromOffset(22, 135)
-keyBox.BackgroundColor3 = Theme.Card
-keyBox.BorderSizePixel = 0
-keyBox.ClearTextOnFocus = false
-keyBox.Font = Enum.Font.Gotham
-keyBox.PlaceholderText = "Access key"
-keyBox.PlaceholderColor3 = Color3.fromRGB(92, 98, 110)
-keyBox.Text = ""
-keyBox.TextColor3 = Theme.Text
-keyBox.TextSize = 13
-keyBox.TextXAlignment = Enum.TextXAlignment.Left
-keyBox.Parent = keyWindow
+KeyLogoText.Size =
+	UDim2.fromScale(1, 1)
 
-corner(keyBox, 8)
-stroke(keyBox)
-padding(keyBox, 14, 14)
+KeyLogoText.BackgroundTransparency = 1
 
-local unlockButton = Instance.new("TextButton")
-unlockButton.Size = UDim2.new(0.5, -27, 0, 44)
-unlockButton.Position = UDim2.fromOffset(22, 196)
-unlockButton.BackgroundColor3 = Theme.Accent
-unlockButton.BorderSizePixel = 0
-unlockButton.AutoButtonColor = false
-unlockButton.Font = Enum.Font.GothamSemibold
-unlockButton.Text = "Continue"
-unlockButton.TextColor3 = Color3.fromRGB(10, 20, 14)
-unlockButton.TextSize = 13
-unlockButton.Parent = keyWindow
-corner(unlockButton, 8)
+KeyLogoText.Font =
+	Enum.Font.GothamBold
 
-local getKeyButton = Instance.new("TextButton")
-getKeyButton.Size = UDim2.new(0.5, -27, 0, 44)
-getKeyButton.Position = UDim2.new(0.5, 5, 0, 196)
-getKeyButton.BackgroundColor3 = Theme.Card
-getKeyButton.BorderSizePixel = 0
-getKeyButton.AutoButtonColor = false
-getKeyButton.Font = Enum.Font.GothamSemibold
-getKeyButton.Text = "Get Access Key"
-getKeyButton.TextColor3 = Theme.Text
-getKeyButton.TextSize = 13
-getKeyButton.Parent = keyWindow
+KeyLogoText.Text = "G"
 
-corner(getKeyButton, 8)
-stroke(getKeyButton)
+KeyLogoText.TextSize = 19
 
-local keyStatus = Instance.new("TextLabel")
-keyStatus.Size = UDim2.new(1, -44, 0, 24)
-keyStatus.Position = UDim2.fromOffset(22, 255)
-keyStatus.BackgroundTransparency = 1
-keyStatus.Font = Enum.Font.Gotham
-keyStatus.Text = ""
-keyStatus.TextColor3 = Theme.SubText
-keyStatus.TextSize = 12
-keyStatus.TextXAlignment = Enum.TextXAlignment.Center
-keyStatus.Parent = keyWindow
+KeyLogoText.TextColor3 =
+	Theme.Accent
 
-makeDraggable(keyWindow, keyTitle)
+KeyLogoText.Parent = KeyLogo
 
-local main = Instance.new("Frame")
-main.Size = UDim2.fromOffset(680, 440)
-main.Position = UDim2.new(0.5, -340, 0.5, -220)
-main.BackgroundColor3 = Theme.Background
-main.BorderSizePixel = 0
-main.Visible = false
-main.ClipsDescendants = true
-main.Parent = screen
+local KeyTitle = Instance.new("TextLabel")
 
-corner(main, 14)
-stroke(main)
+KeyTitle.Size =
+	UDim2.new(
+		1,
+		-90,
+		0,
+		21
+	)
 
-local sidebar = Instance.new("Frame")
-sidebar.Size = UDim2.fromOffset(185, 440)
-sidebar.BackgroundColor3 = Theme.Sidebar
-sidebar.BorderSizePixel = 0
-sidebar.Parent = main
+KeyTitle.Position =
+	UDim2.fromOffset(
+		73,
+		19
+	)
 
-local sideLine = Instance.new("Frame")
-sideLine.Size = UDim2.new(0, 1, 1, 0)
-sideLine.Position = UDim2.new(1, -1, 0, 0)
-sideLine.BackgroundColor3 = Theme.Stroke
-sideLine.BorderSizePixel = 0
-sideLine.Parent = sidebar
+KeyTitle.BackgroundTransparency = 1
+KeyTitle.Font = Enum.Font.GothamBold
 
-local brandIcon = Instance.new("TextLabel")
-brandIcon.Size = UDim2.fromOffset(36, 36)
-brandIcon.Position = UDim2.fromOffset(15, 16)
-brandIcon.BackgroundColor3 = Color3.fromRGB(28, 58, 40)
-brandIcon.BorderSizePixel = 0
-brandIcon.Font = Enum.Font.GothamBold
-brandIcon.Text = "G"
-brandIcon.TextColor3 = Theme.Accent
-brandIcon.TextSize = 18
-brandIcon.Parent = sidebar
-corner(brandIcon, 9)
+KeyTitle.Text =
+	"Gridi Growers"
 
-local brand = Instance.new("TextLabel")
-brand.Size = UDim2.new(1, -64, 0, 20)
-brand.Position = UDim2.fromOffset(61, 16)
-brand.BackgroundTransparency = 1
-brand.Font = Enum.Font.GothamBold
-brand.Text = "Gridi"
-brand.TextColor3 = Theme.Text
-brand.TextSize = 15
-brand.TextXAlignment = Enum.TextXAlignment.Left
-brand.Parent = sidebar
+KeyTitle.TextColor3 =
+	Theme.Text
 
-local version = Instance.new("TextLabel")
-version.Size = UDim2.new(1, -64, 0, 15)
-version.Position = UDim2.fromOffset(61, 37)
-version.BackgroundTransparency = 1
-version.Font = Enum.Font.Gotham
-version.Text = "Growers"
-version.TextColor3 = Theme.SubText
-version.TextSize = 10
-version.TextXAlignment = Enum.TextXAlignment.Left
-version.Parent = sidebar
+KeyTitle.TextSize = 16
 
-local navHolder = Instance.new("Frame")
-navHolder.Size = UDim2.new(1, -20, 0, 180)
-navHolder.Position = UDim2.fromOffset(10, 78)
-navHolder.BackgroundTransparency = 1
-navHolder.Parent = sidebar
+KeyTitle.TextXAlignment =
+	Enum.TextXAlignment.Left
 
-local navLayout = Instance.new("UIListLayout")
-navLayout.Padding = UDim.new(0, 7)
-navLayout.Parent = navHolder
+KeyTitle.Parent = KeyHeader
 
-local profile = Instance.new("Frame")
-profile.Size = UDim2.new(1, -20, 0, 64)
-profile.Position = UDim2.new(0, 10, 1, -76)
-profile.BackgroundColor3 = Theme.Card
-profile.BorderSizePixel = 0
-profile.Parent = sidebar
-corner(profile, 10)
-stroke(profile)
+local KeySub = Instance.new("TextLabel")
 
-local avatar = Instance.new("ImageLabel")
-avatar.Size = UDim2.fromOffset(38, 38)
-avatar.Position = UDim2.fromOffset(10, 13)
-avatar.BackgroundColor3 = Theme.Off
-avatar.BorderSizePixel = 0
-avatar.Parent = profile
-corner(avatar, 19)
+KeySub.Size =
+	UDim2.new(
+		1,
+		-90,
+		0,
+		17
+	)
+
+KeySub.Position =
+	UDim2.fromOffset(
+		73,
+		42
+	)
+
+KeySub.BackgroundTransparency = 1
+KeySub.Font = Enum.Font.Gotham
+
+KeySub.Text = "Authentication"
+
+KeySub.TextColor3 =
+	Theme.SubText
+
+KeySub.TextSize = 9
+
+KeySub.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+KeySub.Parent = KeyHeader
+
+makeDraggable(
+	KeyWindow,
+	KeyHeader
+)
+
+local KeyLabel =
+	Instance.new("TextLabel")
+
+KeyLabel.Size =
+	UDim2.new(
+		1,
+		-40,
+		0,
+		18
+	)
+
+KeyLabel.Position =
+	UDim2.fromOffset(
+		20,
+		87
+	)
+
+KeyLabel.BackgroundTransparency = 1
+
+KeyLabel.Font =
+	Enum.Font.GothamSemibold
+
+KeyLabel.Text =
+	"ACCESS KEY"
+
+KeyLabel.TextColor3 =
+	Theme.SubText
+
+KeyLabel.TextSize = 8
+
+KeyLabel.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+KeyLabel.Parent = KeyWindow
+
+local KeyBox = Instance.new("TextBox")
+
+KeyBox.Size =
+	UDim2.new(
+		1,
+		-40,
+		0,
+		43
+	)
+
+KeyBox.Position =
+	UDim2.fromOffset(
+		20,
+		111
+	)
+
+KeyBox.BackgroundColor3 =
+	Theme.Card
+
+KeyBox.BorderSizePixel = 0
+KeyBox.ClearTextOnFocus = false
+
+KeyBox.Font =
+	Enum.Font.Gotham
+
+KeyBox.PlaceholderText =
+	"Enter access key"
+
+KeyBox.PlaceholderColor3 =
+	Color3.fromRGB(
+		82,
+		87,
+		98
+	)
+
+KeyBox.Text = ""
+
+KeyBox.TextColor3 =
+	Theme.Text
+
+KeyBox.TextSize = 11
+
+KeyBox.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+KeyBox.Parent = KeyWindow
+
+corner(KeyBox, 7)
+stroke(KeyBox)
+
+padding(
+	KeyBox,
+	12,
+	12
+)
+
+local Continue =
+	Instance.new("TextButton")
+
+Continue.Size =
+	UDim2.new(
+		0.5,
+		-25,
+		0,
+		40
+	)
+
+Continue.Position =
+	UDim2.fromOffset(
+		20,
+		170
+	)
+
+Continue.BackgroundColor3 =
+	Theme.Accent
+
+Continue.BorderSizePixel = 0
+Continue.AutoButtonColor = false
+
+Continue.Font =
+	Enum.Font.GothamSemibold
+
+Continue.Text = "Continue"
+
+Continue.TextColor3 =
+	Color3.fromRGB(
+		8,
+		17,
+		11
+	)
+
+Continue.TextSize = 10
+Continue.Parent = KeyWindow
+
+corner(Continue, 7)
+
+local GetKey =
+	Instance.new("TextButton")
+
+GetKey.Size =
+	UDim2.new(
+		0.5,
+		-25,
+		0,
+		40
+	)
+
+GetKey.Position =
+	UDim2.new(
+		0.5,
+		5,
+		0,
+		170
+	)
+
+GetKey.BackgroundColor3 =
+	Theme.Card
+
+GetKey.BorderSizePixel = 0
+GetKey.AutoButtonColor = false
+
+GetKey.Font =
+	Enum.Font.GothamSemibold
+
+GetKey.Text =
+	"Get Access Key"
+
+GetKey.TextColor3 =
+	Theme.Text
+
+GetKey.TextSize = 10
+GetKey.Parent = KeyWindow
+
+corner(GetKey, 7)
+stroke(GetKey)
+
+local KeyStatus =
+	Instance.new("TextLabel")
+
+KeyStatus.Size =
+	UDim2.new(
+		1,
+		-40,
+		0,
+		22
+	)
+
+KeyStatus.Position =
+	UDim2.fromOffset(
+		20,
+		228
+	)
+
+KeyStatus.BackgroundTransparency = 1
+
+KeyStatus.Font =
+	Enum.Font.Gotham
+
+KeyStatus.Text = ""
+
+KeyStatus.TextColor3 =
+	Theme.SubText
+
+KeyStatus.TextSize = 9
+
+KeyStatus.TextXAlignment =
+	Enum.TextXAlignment.Center
+
+KeyStatus.Parent = KeyWindow
+
+--========================================================
+-- MAIN WINDOW
+--========================================================
+
+local Main = Instance.new("Frame")
+
+Main.Size =
+	UDim2.fromOffset(
+		700,
+		455
+	)
+
+Main.Position =
+	UDim2.new(
+		0.5,
+		-350,
+		0.5,
+		-227
+	)
+
+Main.BackgroundColor3 =
+	Theme.Background
+
+Main.BorderSizePixel = 0
+Main.Visible = false
+Main.ClipsDescendants = true
+
+Main.Parent = Screen
+
+corner(Main, 11)
+stroke(Main)
+
+--========================================================
+-- SIDEBAR
+--========================================================
+
+local Sidebar = Instance.new("Frame")
+
+Sidebar.Size =
+	UDim2.fromOffset(
+		188,
+		455
+	)
+
+Sidebar.BackgroundColor3 =
+	Theme.Sidebar
+
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = Main
+
+local SideLine = Instance.new("Frame")
+
+SideLine.Size =
+	UDim2.new(
+		0,
+		1,
+		1,
+		0
+	)
+
+SideLine.Position =
+	UDim2.new(
+		1,
+		-1,
+		0,
+		0
+	)
+
+SideLine.BackgroundColor3 =
+	Theme.Stroke
+
+SideLine.BorderSizePixel = 0
+SideLine.Parent = Sidebar
+
+local BrandIcon = Instance.new("Frame")
+
+BrandIcon.Size =
+	UDim2.fromOffset(
+		34,
+		34
+	)
+
+BrandIcon.Position =
+	UDim2.fromOffset(
+		15,
+		16
+	)
+
+BrandIcon.BackgroundColor3 =
+	Theme.AccentDark
+
+BrandIcon.BorderSizePixel = 0
+BrandIcon.Parent = Sidebar
+
+corner(BrandIcon, 8)
+
+local BrandG =
+	Instance.new("TextLabel")
+
+BrandG.Size =
+	UDim2.fromScale(1, 1)
+
+BrandG.BackgroundTransparency = 1
+
+BrandG.Font =
+	Enum.Font.GothamBold
+
+BrandG.Text = "G"
+
+BrandG.TextColor3 =
+	Theme.Accent
+
+BrandG.TextSize = 16
+BrandG.Parent = BrandIcon
+
+local BrandName =
+	Instance.new("TextLabel")
+
+BrandName.Size =
+	UDim2.new(
+		1,
+		-62,
+		0,
+		18
+	)
+
+BrandName.Position =
+	UDim2.fromOffset(
+		59,
+		16
+	)
+
+BrandName.BackgroundTransparency = 1
+
+BrandName.Font =
+	Enum.Font.GothamBold
+
+BrandName.Text = "Gridi"
+
+BrandName.TextColor3 =
+	Theme.Text
+
+BrandName.TextSize = 13
+
+BrandName.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+BrandName.Parent = Sidebar
+
+local BrandSub =
+	Instance.new("TextLabel")
+
+BrandSub.Size =
+	UDim2.new(
+		1,
+		-62,
+		0,
+		15
+	)
+
+BrandSub.Position =
+	UDim2.fromOffset(
+		59,
+		34
+	)
+
+BrandSub.BackgroundTransparency = 1
+
+BrandSub.Font =
+	Enum.Font.Gotham
+
+BrandSub.Text = "Growers"
+
+BrandSub.TextColor3 =
+	Theme.SubText
+
+BrandSub.TextSize = 8
+
+BrandSub.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+BrandSub.Parent = Sidebar
+
+--========================================================
+-- PROFILE
+--========================================================
+
+local Profile = Instance.new("Frame")
+
+Profile.Size =
+	UDim2.new(
+		1,
+		-20,
+		0,
+		63
+	)
+
+Profile.Position =
+	UDim2.new(
+		0,
+		10,
+		1,
+		-74
+	)
+
+Profile.BackgroundColor3 =
+	Theme.Card
+
+Profile.BorderSizePixel = 0
+Profile.Parent = Sidebar
+
+corner(Profile, 8)
+stroke(Profile)
+
+local Avatar =
+	Instance.new("ImageLabel")
+
+Avatar.Size =
+	UDim2.fromOffset(
+		38,
+		38
+	)
+
+Avatar.Position =
+	UDim2.fromOffset(
+		10,
+		12
+	)
+
+Avatar.BackgroundColor3 =
+	Theme.Off
+
+Avatar.BorderSizePixel = 0
+Avatar.Parent = Profile
+
+corner(Avatar, 19)
 
 task.spawn(function()
-	local success, image = pcall(function()
-		return Players:GetUserThumbnailAsync(
-			player.UserId,
-			Enum.ThumbnailType.HeadShot,
-			Enum.ThumbnailSize.Size150x150
-		)
-	end)
+	local success, image =
+		pcall(function()
+
+			return Players:
+				GetUserThumbnailAsync(
+					player.UserId,
+
+					Enum.ThumbnailType.HeadShot,
+
+					Enum.ThumbnailSize.Size150x150
+				)
+		end)
 
 	if success then
-		avatar.Image = image
+		Avatar.Image = image
 	end
 end)
 
-local displayName = Instance.new("TextLabel")
-displayName.Size = UDim2.new(1, -60, 0, 18)
-displayName.Position = UDim2.fromOffset(57, 13)
-displayName.BackgroundTransparency = 1
-displayName.Font = Enum.Font.GothamSemibold
-displayName.Text = player.DisplayName
-displayName.TextColor3 = Theme.Text
-displayName.TextSize = 11
-displayName.TextTruncate = Enum.TextTruncate.AtEnd
-displayName.TextXAlignment = Enum.TextXAlignment.Left
-displayName.Parent = profile
+local DisplayName =
+	Instance.new("TextLabel")
 
-local username = Instance.new("TextLabel")
-username.Size = UDim2.new(1, -60, 0, 17)
-username.Position = UDim2.fromOffset(57, 32)
-username.BackgroundTransparency = 1
-username.Font = Enum.Font.Gotham
-username.Text = "@" .. player.Name
-username.TextColor3 = Theme.SubText
-username.TextSize = 9
-username.TextTruncate = Enum.TextTruncate.AtEnd
-username.TextXAlignment = Enum.TextXAlignment.Left
-username.Parent = profile
+DisplayName.Size =
+	UDim2.new(
+		1,
+		-60,
+		0,
+		17
+	)
 
-local header = Instance.new("Frame")
-header.Size = UDim2.new(1, -185, 0, 67)
-header.Position = UDim2.fromOffset(185, 0)
-header.BackgroundTransparency = 1
-header.Parent = main
+DisplayName.Position =
+	UDim2.fromOffset(
+		56,
+		13
+	)
 
-local pageTitle = Instance.new("TextLabel")
-pageTitle.Size = UDim2.new(1, -120, 0, 24)
-pageTitle.Position = UDim2.fromOffset(22, 14)
-pageTitle.BackgroundTransparency = 1
-pageTitle.Font = Enum.Font.GothamBold
-pageTitle.Text = "Seed Farm"
-pageTitle.TextColor3 = Theme.Text
-pageTitle.TextSize = 17
-pageTitle.TextXAlignment = Enum.TextXAlignment.Left
-pageTitle.Parent = header
+DisplayName.BackgroundTransparency = 1
 
-local pageDescription = Instance.new("TextLabel")
-pageDescription.Size = UDim2.new(1, -120, 0, 18)
-pageDescription.Position = UDim2.fromOffset(22, 38)
-pageDescription.BackgroundTransparency = 1
-pageDescription.Font = Enum.Font.Gotham
-pageDescription.Text = "Farm automation"
-pageDescription.TextColor3 = Theme.SubText
-pageDescription.TextSize = 10
-pageDescription.TextXAlignment = Enum.TextXAlignment.Left
-pageDescription.Parent = header
+DisplayName.Font =
+	Enum.Font.GothamSemibold
 
-local minimize = Instance.new("TextButton")
-minimize.Size = UDim2.fromOffset(31, 31)
-minimize.Position = UDim2.new(1, -78, 0, 17)
-minimize.BackgroundColor3 = Theme.Card
-minimize.BorderSizePixel = 0
-minimize.AutoButtonColor = false
-minimize.Font = Enum.Font.GothamBold
-minimize.Text = "—"
-minimize.TextColor3 = Theme.SubText
-minimize.TextSize = 14
-minimize.Parent = header
-corner(minimize, 7)
-stroke(minimize)
+DisplayName.Text =
+	player.DisplayName
 
-local close = Instance.new("TextButton")
-close.Size = UDim2.fromOffset(31, 31)
-close.Position = UDim2.new(1, -40, 0, 17)
-close.BackgroundColor3 = Theme.Card
-close.BorderSizePixel = 0
-close.AutoButtonColor = false
-close.Font = Enum.Font.GothamBold
-close.Text = "×"
-close.TextColor3 = Theme.SubText
-close.TextSize = 16
-close.Parent = header
-corner(close, 7)
-stroke(close)
+DisplayName.TextColor3 =
+	Theme.Text
 
-makeDraggable(main, header)
+DisplayName.TextSize = 10
 
-local content = Instance.new("Frame")
-content.Size = UDim2.new(1, -207, 1, -82)
-content.Position = UDim2.fromOffset(207, 70)
-content.BackgroundTransparency = 1
-content.Parent = main
+DisplayName.TextXAlignment =
+	Enum.TextXAlignment.Left
 
-local pages = {}
+DisplayName.TextTruncate =
+	Enum.TextTruncate.AtEnd
+
+DisplayName.Parent = Profile
+
+local Username =
+	Instance.new("TextLabel")
+
+Username.Size =
+	UDim2.new(
+		1,
+		-60,
+		0,
+		16
+	)
+
+Username.Position =
+	UDim2.fromOffset(
+		56,
+		31
+	)
+
+Username.BackgroundTransparency = 1
+
+Username.Font =
+	Enum.Font.Gotham
+
+Username.Text =
+	"@" .. player.Name
+
+Username.TextColor3 =
+	Theme.SubText
+
+Username.TextSize = 8
+
+Username.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+Username.TextTruncate =
+	Enum.TextTruncate.AtEnd
+
+Username.Parent = Profile
+
+--========================================================
+-- NAVIGATION
+--========================================================
+
+local Navigation = Instance.new("Frame")
+
+Navigation.Size =
+	UDim2.new(
+		1,
+		-20,
+		0,
+		230
+	)
+
+Navigation.Position =
+	UDim2.fromOffset(
+		10,
+		75
+	)
+
+Navigation.BackgroundTransparency = 1
+Navigation.Parent = Sidebar
+
+local NavigationLayout =
+	Instance.new("UIListLayout")
+
+NavigationLayout.Padding =
+	UDim.new(0, 6)
+
+NavigationLayout.Parent =
+	Navigation
+
+--========================================================
+-- HEADER
+--========================================================
+
+local Header = Instance.new("Frame")
+
+Header.Size =
+	UDim2.new(
+		1,
+		-188,
+		0,
+		68
+	)
+
+Header.Position =
+	UDim2.fromOffset(
+		188,
+		0
+	)
+
+Header.BackgroundTransparency = 1
+Header.Parent = Main
+
+makeDraggable(
+	Main,
+	Header
+)
+
+local PageTitle =
+	Instance.new("TextLabel")
+
+PageTitle.Size =
+	UDim2.new(
+		1,
+		-120,
+		0,
+		22
+	)
+
+PageTitle.Position =
+	UDim2.fromOffset(
+		22,
+		14
+	)
+
+PageTitle.BackgroundTransparency = 1
+
+PageTitle.Font =
+	Enum.Font.GothamBold
+
+PageTitle.Text = "Seed Farm"
+
+PageTitle.TextColor3 =
+	Theme.Text
+
+PageTitle.TextSize = 15
+
+PageTitle.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+PageTitle.Parent = Header
+
+local PageSub =
+	Instance.new("TextLabel")
+
+PageSub.Size =
+	UDim2.new(
+		1,
+		-120,
+		0,
+		16
+	)
+
+PageSub.Position =
+	UDim2.fromOffset(
+		22,
+		37
+	)
+
+PageSub.BackgroundTransparency = 1
+
+PageSub.Font =
+	Enum.Font.Gotham
+
+PageSub.Text = "Automation"
+
+PageSub.TextColor3 =
+	Theme.SubText
+
+PageSub.TextSize = 9
+
+PageSub.TextXAlignment =
+	Enum.TextXAlignment.Left
+
+PageSub.Parent = Header
+
+local Minimize =
+	Instance.new("TextButton")
+
+Minimize.Size =
+	UDim2.fromOffset(
+		30,
+		30
+	)
+
+Minimize.Position =
+	UDim2.new(
+		1,
+		-75,
+		0,
+		17
+	)
+
+Minimize.BackgroundColor3 =
+	Theme.Card
+
+Minimize.BorderSizePixel = 0
+
+Minimize.Font =
+	Enum.Font.GothamBold
+
+Minimize.Text = "—"
+
+Minimize.TextColor3 =
+	Theme.SubText
+
+Minimize.TextSize = 11
+Minimize.Parent = Header
+
+corner(Minimize, 7)
+stroke(Minimize)
+
+local Close =
+	Instance.new("TextButton")
+
+Close.Size =
+	UDim2.fromOffset(
+		30,
+		30
+	)
+
+Close.Position =
+	UDim2.new(
+		1,
+		-38,
+		0,
+		17
+	)
+
+Close.BackgroundColor3 =
+	Theme.Card
+
+Close.BorderSizePixel = 0
+
+Close.Font =
+	Enum.Font.GothamBold
+
+Close.Text = "×"
+
+Close.TextColor3 =
+	Theme.SubText
+
+Close.TextSize = 14
+Close.Parent = Header
+
+corner(Close, 7)
+stroke(Close)
+
+--========================================================
+-- PAGE HOLDER
+--========================================================
+
+local Content = Instance.new("Frame")
+
+Content.Size =
+	UDim2.new(
+		1,
+		-210,
+		1,
+		-82
+	)
+
+Content.Position =
+	UDim2.fromOffset(
+		210,
+		70
+	)
+
+Content.BackgroundTransparency = 1
+Content.Parent = Main
+
+local Pages = {}
+local NavButtons = {}
 
 local function createPage(name)
-	local page = Instance.new("ScrollingFrame")
+	local page =
+		Instance.new("ScrollingFrame")
+
 	page.Name = name
-	page.Size = UDim2.fromScale(1, 1)
+
+	page.Size =
+		UDim2.fromScale(1, 1)
+
 	page.BackgroundTransparency = 1
 	page.BorderSizePixel = 0
-	page.ScrollBarThickness = 3
-	page.ScrollBarImageColor3 = Theme.Accent
-	page.CanvasSize = UDim2.new()
-	page.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	page.Visible = false
-	page.Parent = content
 
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 9)
+	page.CanvasSize =
+		UDim2.new()
+
+	page.AutomaticCanvasSize =
+		Enum.AutomaticSize.Y
+
+	page.ScrollBarThickness = 3
+
+	page.ScrollBarImageColor3 =
+		Theme.Accent
+
+	page.Visible = false
+	page.Parent = Content
+
+	local layout =
+		Instance.new("UIListLayout")
+
+	layout.Padding =
+		UDim.new(0, 8)
+
 	layout.Parent = page
 
-	padding(page, 0, 7, 0, 8)
+	padding(
+		page,
+		0,
+		7,
+		0,
+		8
+	)
 
-	pages[name] = page
+	Pages[name] = page
 
 	return page
 end
 
-local seedPage = createPage("Seeds")
-local playerPage = createPage("Player")
-local utilityPage = createPage("Utility")
+local SeedPage =
+	createPage("Seed")
 
-local navButtons = {}
+local PlayerPage =
+	createPage("Player")
 
-local function switchPage(name, title, description)
-	for pageName, page in pairs(pages) do
-		page.Visible = pageName == name
+local EmotePage =
+	createPage("Emotes")
+
+local UtilityPage =
+	createPage("Utility")
+
+local function switchPage(
+	name,
+	title,
+	subtitle
+)
+	for pageName, page in pairs(Pages) do
+		page.Visible =
+			pageName == name
 	end
 
-	for pageName, button in pairs(navButtons) do
-		local selected = pageName == name
+	for pageName, button in pairs(NavButtons) do
+		local selected =
+			pageName == name
 
-		tween(button, 0.18, {
-			BackgroundColor3 = selected
-				and Color3.fromRGB(30, 55, 40)
-				or Theme.Sidebar
+		tween(button, 0.15, {
+			BackgroundColor3 =
+				selected
+				and Theme.AccentDark
+				or Theme.Sidebar,
 		})
 
 		button.TextColor3 =
-			selected and Theme.Accent or Theme.SubText
+			selected
+				and Theme.Accent
+				or Theme.SubText
 	end
 
-	pageTitle.Text = title
-	pageDescription.Text = description
+	PageTitle.Text = title
+	PageSub.Text = subtitle
 end
 
-local function createNav(name, icon, title, description)
-	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(1, 0, 0, 42)
-	button.BackgroundColor3 = Theme.Sidebar
+local function createNav(
+	name,
+	icon,
+	title,
+	subtitle
+)
+	local button =
+		Instance.new("TextButton")
+
+	button.Size =
+		UDim2.new(
+			1,
+			0,
+			0,
+			40
+		)
+
+	button.BackgroundColor3 =
+		Theme.Sidebar
+
 	button.BorderSizePixel = 0
 	button.AutoButtonColor = false
-	button.Font = Enum.Font.GothamSemibold
-	button.Text = icon .. "   " .. title
-	button.TextColor3 = Theme.SubText
-	button.TextSize = 11
-	button.TextXAlignment = Enum.TextXAlignment.Left
-	button.Parent = navHolder
-	corner(button, 8)
-	padding(button, 13)
 
-	navButtons[name] = button
+	button.Font =
+		Enum.Font.GothamSemibold
+
+	button.Text =
+		icon .. "   " .. title
+
+	button.TextColor3 =
+		Theme.SubText
+
+	button.TextSize = 10
+
+	button.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	button.Parent =
+		Navigation
+
+	corner(button, 7)
+	padding(button, 12)
+
+	NavButtons[name] =
+		button
 
 	button.MouseButton1Click:Connect(function()
-		switchPage(name, title, description)
+		switchPage(
+			name,
+			title,
+			subtitle
+		)
 	end)
 end
 
 createNav(
-	"Seeds",
+	"Seed",
 	"🌱",
 	"Seed Farm",
 	"Farm automation"
@@ -1374,80 +2703,209 @@ createNav(
 
 createNav(
 	"Player",
-	"👤",
+	"◈",
 	"Player",
 	"Movement modifications"
 )
 
 createNav(
-	"Utility",
-	"🧰",
-	"Utility",
-	"Quick shop access"
+	"Emotes",
+	"☺",
+	"Emotes",
+	"Emoji automation"
 )
 
-local function section(parent, title)
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 0, 25)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamSemibold
-	label.Text = string.upper(title)
-	label.TextColor3 = Theme.SubText
-	label.TextSize = 9
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Parent = parent
+createNav(
+	"Utility",
+	"⚙",
+	"Utility",
+	"Shops and session"
+)
 
-	return label
+--========================================================
+-- UI CONTROLS
+--========================================================
+
+local function section(
+	parent,
+	text
+)
+	local label =
+		Instance.new("TextLabel")
+
+	label.Size =
+		UDim2.new(
+			1,
+			0,
+			0,
+			23
+		)
+
+	label.BackgroundTransparency = 1
+
+	label.Font =
+		Enum.Font.GothamSemibold
+
+	label.Text =
+		string.upper(text)
+
+	label.TextColor3 =
+		Theme.SubText
+
+	label.TextSize = 8
+
+	label.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	label.Parent = parent
 end
 
-local function toggle(parent, title, description, callback)
-	local card = Instance.new("TextButton")
-	card.Size = UDim2.new(1, 0, 0, 65)
-	card.BackgroundColor3 = Theme.Card
+local function createToggle(
+	parent,
+	title,
+	description,
+	callback
+)
+	local card =
+		Instance.new("TextButton")
+
+	card.Size =
+		UDim2.new(
+			1,
+			0,
+			0,
+			63
+		)
+
+	card.BackgroundColor3 =
+		Theme.Card
+
 	card.BorderSizePixel = 0
 	card.AutoButtonColor = false
 	card.Text = ""
+
 	card.Parent = parent
 
-	corner(card, 9)
+	corner(card, 8)
 	stroke(card)
 
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Size = UDim2.new(1, -80, 0, 20)
-	titleLabel.Position = UDim2.fromOffset(14, 12)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Font = Enum.Font.GothamSemibold
-	titleLabel.Text = title
-	titleLabel.TextColor3 = Theme.Text
-	titleLabel.TextSize = 12
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = card
+	local titleText =
+		Instance.new("TextLabel")
 
-	local descriptionLabel = Instance.new("TextLabel")
-	descriptionLabel.Size = UDim2.new(1, -80, 0, 17)
-	descriptionLabel.Position = UDim2.fromOffset(14, 34)
-	descriptionLabel.BackgroundTransparency = 1
-	descriptionLabel.Font = Enum.Font.Gotham
-	descriptionLabel.Text = description
-	descriptionLabel.TextColor3 = Theme.SubText
-	descriptionLabel.TextSize = 10
-	descriptionLabel.TextXAlignment = Enum.TextXAlignment.Left
-	descriptionLabel.Parent = card
+	titleText.Size =
+		UDim2.new(
+			1,
+			-78,
+			0,
+			18
+		)
 
-	local switch = Instance.new("Frame")
-	switch.Size = UDim2.fromOffset(38, 21)
-	switch.Position = UDim2.new(1, -52, 0.5, -10)
-	switch.BackgroundColor3 = Theme.Off
+	titleText.Position =
+		UDim2.fromOffset(
+			13,
+			11
+		)
+
+	titleText.BackgroundTransparency = 1
+
+	titleText.Font =
+		Enum.Font.GothamSemibold
+
+	titleText.Text = title
+
+	titleText.TextColor3 =
+		Theme.Text
+
+	titleText.TextSize = 11
+
+	titleText.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	titleText.Parent = card
+
+	local desc =
+		Instance.new("TextLabel")
+
+	desc.Size =
+		UDim2.new(
+			1,
+			-78,
+			0,
+			16
+		)
+
+	desc.Position =
+		UDim2.fromOffset(
+			13,
+			33
+		)
+
+	desc.BackgroundTransparency = 1
+
+	desc.Font =
+		Enum.Font.Gotham
+
+	desc.Text = description
+
+	desc.TextColor3 =
+		Theme.SubText
+
+	desc.TextSize = 9
+
+	desc.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	desc.TextTruncate =
+		Enum.TextTruncate.AtEnd
+
+	desc.Parent = card
+
+	local switch =
+		Instance.new("Frame")
+
+	switch.Size =
+		UDim2.fromOffset(
+			36,
+			20
+		)
+
+	switch.Position =
+		UDim2.new(
+			1,
+			-49,
+			0.5,
+			-10
+		)
+
+	switch.BackgroundColor3 =
+		Theme.Off
+
 	switch.BorderSizePixel = 0
 	switch.Parent = card
+
 	corner(switch, 20)
 
-	local knob = Instance.new("Frame")
-	knob.Size = UDim2.fromOffset(15, 15)
-	knob.Position = UDim2.fromOffset(3, 3)
-	knob.BackgroundColor3 = Theme.Text
+	local knob =
+		Instance.new("Frame")
+
+	knob.Size =
+		UDim2.fromOffset(
+			14,
+			14
+		)
+
+	knob.Position =
+		UDim2.fromOffset(
+			3,
+			3
+		)
+
+	knob.BackgroundColor3 =
+		Theme.Text
+
 	knob.BorderSizePixel = 0
 	knob.Parent = switch
+
 	corner(knob, 20)
 
 	local enabled = false
@@ -1455,16 +2913,24 @@ local function toggle(parent, title, description, callback)
 	local function set(value)
 		enabled = value
 
-		tween(switch, 0.2, {
+		tween(switch, 0.18, {
 			BackgroundColor3 =
-				enabled and Theme.Accent or Theme.Off
+				enabled
+					and Theme.Accent
+					or Theme.Off,
 		})
 
-		tween(knob, 0.2, {
+		tween(knob, 0.18, {
 			Position =
 				enabled
-				and UDim2.fromOffset(20, 3)
-				or UDim2.fromOffset(3, 3)
+					and UDim2.fromOffset(
+						19,
+						3
+					)
+					or UDim2.fromOffset(
+						3,
+						3
+					),
 		})
 
 		callback(enabled)
@@ -1475,101 +2941,208 @@ local function toggle(parent, title, description, callback)
 	end)
 
 	card.MouseEnter:Connect(function()
-		tween(card, 0.15, {
-			BackgroundColor3 = Theme.CardHover
+		tween(card, 0.12, {
+			BackgroundColor3 =
+				Theme.CardHover,
 		})
 	end)
 
 	card.MouseLeave:Connect(function()
-		tween(card, 0.15, {
-			BackgroundColor3 = Theme.Card
+		tween(card, 0.12, {
+			BackgroundColor3 =
+				Theme.Card,
 		})
 	end)
 
 	return {
 		Set = set,
+
 		Get = function()
 			return enabled
-		end
+		end,
 	}
 end
 
-local function actionButton(parent, title, description, callback)
-	local card = Instance.new("TextButton")
-	card.Size = UDim2.new(1, 0, 0, 65)
-	card.BackgroundColor3 = Theme.Card
+local function createAction(
+	parent,
+	title,
+	description,
+	buttonText,
+	callback
+)
+	local card =
+		Instance.new("TextButton")
+
+	card.Size =
+		UDim2.new(
+			1,
+			0,
+			0,
+			63
+		)
+
+	card.BackgroundColor3 =
+		Theme.Card
+
 	card.BorderSizePixel = 0
 	card.AutoButtonColor = false
+
 	card.Text = ""
 	card.Parent = parent
 
-	corner(card, 9)
+	corner(card, 8)
 	stroke(card)
 
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Size = UDim2.new(1, -85, 0, 20)
-	titleLabel.Position = UDim2.fromOffset(14, 12)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Font = Enum.Font.GothamSemibold
-	titleLabel.Text = title
-	titleLabel.TextColor3 = Theme.Text
-	titleLabel.TextSize = 12
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = card
+	local titleText =
+		Instance.new("TextLabel")
 
-	local descriptionLabel = Instance.new("TextLabel")
-	descriptionLabel.Size = UDim2.new(1, -85, 0, 17)
-	descriptionLabel.Position = UDim2.fromOffset(14, 34)
-	descriptionLabel.BackgroundTransparency = 1
-	descriptionLabel.Font = Enum.Font.Gotham
-	descriptionLabel.Text = description
-	descriptionLabel.TextColor3 = Theme.SubText
-	descriptionLabel.TextSize = 10
-	descriptionLabel.TextXAlignment = Enum.TextXAlignment.Left
-	descriptionLabel.Parent = card
+	titleText.Size =
+		UDim2.new(
+			1,
+			-85,
+			0,
+			18
+		)
 
-	local run = Instance.new("TextLabel")
-	run.Size = UDim2.fromOffset(54, 27)
-	run.Position = UDim2.new(1, -68, 0.5, -13)
-	run.BackgroundColor3 = Color3.fromRGB(29, 57, 40)
+	titleText.Position =
+		UDim2.fromOffset(
+			13,
+			11
+		)
+
+	titleText.BackgroundTransparency = 1
+
+	titleText.Font =
+		Enum.Font.GothamSemibold
+
+	titleText.Text = title
+
+	titleText.TextColor3 =
+		Theme.Text
+
+	titleText.TextSize = 11
+
+	titleText.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	titleText.Parent = card
+
+	local desc =
+		Instance.new("TextLabel")
+
+	desc.Size =
+		UDim2.new(
+			1,
+			-85,
+			0,
+			16
+		)
+
+	desc.Position =
+		UDim2.fromOffset(
+			13,
+			33
+		)
+
+	desc.BackgroundTransparency = 1
+
+	desc.Font =
+		Enum.Font.Gotham
+
+	desc.Text = description
+
+	desc.TextColor3 =
+		Theme.SubText
+
+	desc.TextSize = 9
+
+	desc.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	desc.TextTruncate =
+		Enum.TextTruncate.AtEnd
+
+	desc.Parent = card
+
+	local run =
+		Instance.new("TextLabel")
+
+	run.Size =
+		UDim2.fromOffset(
+			52,
+			25
+		)
+
+	run.Position =
+		UDim2.new(
+			1,
+			-65,
+			0.5,
+			-12
+		)
+
+	run.BackgroundColor3 =
+		Theme.AccentDark
+
 	run.BorderSizePixel = 0
-	run.Font = Enum.Font.GothamSemibold
-	run.Text = "RUN"
-	run.TextColor3 = Theme.Accent
-	run.TextSize = 9
+
+	run.Font =
+		Enum.Font.GothamSemibold
+
+	run.Text = buttonText
+
+	run.TextColor3 =
+		Theme.Accent
+
+	run.TextSize = 8
 	run.Parent = card
-	corner(run, 7)
+
+	corner(run, 6)
 
 	card.MouseButton1Click:Connect(function()
-		callback()
+		task.spawn(callback)
 
 		tween(run, 0.12, {
-			BackgroundColor3 = Theme.Accent,
-			TextColor3 = Color3.fromRGB(10, 20, 14)
+			BackgroundColor3 =
+				Theme.Accent,
+
+			TextColor3 =
+				Color3.fromRGB(
+					8,
+					17,
+					11
+				),
 		})
 
-		task.delay(0.25, function()
-			tween(run, 0.18, {
-				BackgroundColor3 = Color3.fromRGB(29, 57, 40),
-				TextColor3 = Theme.Accent
-			})
+		task.delay(0.22, function()
+			if run.Parent then
+				tween(run, 0.14, {
+					BackgroundColor3 =
+						Theme.AccentDark,
+
+					TextColor3 =
+						Theme.Accent,
+				})
+			end
 		end)
 	end)
 
 	card.MouseEnter:Connect(function()
-		tween(card, 0.15, {
-			BackgroundColor3 = Theme.CardHover
+		tween(card, 0.12, {
+			BackgroundColor3 =
+				Theme.CardHover,
 		})
 	end)
 
 	card.MouseLeave:Connect(function()
-		tween(card, 0.15, {
-			BackgroundColor3 = Theme.Card
+		tween(card, 0.12, {
+			BackgroundColor3 =
+				Theme.Card,
 		})
 	end)
 end
 
-local function slider(
+local function createSlider(
 	parent,
 	title,
 	minimum,
@@ -1577,99 +3150,237 @@ local function slider(
 	default,
 	callback
 )
-	local card = Instance.new("Frame")
-	card.Size = UDim2.new(1, 0, 0, 78)
-	card.BackgroundColor3 = Theme.Card
+	local card =
+		Instance.new("Frame")
+
+	card.Size =
+		UDim2.new(
+			1,
+			0,
+			0,
+			76
+		)
+
+	card.BackgroundColor3 =
+		Theme.Card
+
 	card.BorderSizePixel = 0
 	card.Parent = parent
 
-	corner(card, 9)
+	corner(card, 8)
 	stroke(card)
 
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Size = UDim2.new(1, -75, 0, 20)
-	titleLabel.Position = UDim2.fromOffset(14, 11)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Font = Enum.Font.GothamSemibold
-	titleLabel.Text = title
-	titleLabel.TextColor3 = Theme.Text
-	titleLabel.TextSize = 12
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = card
+	local titleText =
+		Instance.new("TextLabel")
 
-	local valueLabel = Instance.new("TextLabel")
-	valueLabel.Size = UDim2.fromOffset(52, 22)
-	valueLabel.Position = UDim2.new(1, -66, 0, 10)
-	valueLabel.BackgroundColor3 = Color3.fromRGB(29, 32, 39)
+	titleText.Size =
+		UDim2.new(
+			1,
+			-70,
+			0,
+			18
+		)
+
+	titleText.Position =
+		UDim2.fromOffset(
+			13,
+			10
+		)
+
+	titleText.BackgroundTransparency = 1
+
+	titleText.Font =
+		Enum.Font.GothamSemibold
+
+	titleText.Text = title
+
+	titleText.TextColor3 =
+		Theme.Text
+
+	titleText.TextSize = 11
+
+	titleText.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	titleText.Parent = card
+
+	local valueLabel =
+		Instance.new("TextLabel")
+
+	valueLabel.Size =
+		UDim2.fromOffset(
+			50,
+			21
+		)
+
+	valueLabel.Position =
+		UDim2.new(
+			1,
+			-63,
+			0,
+			9
+		)
+
+	valueLabel.BackgroundColor3 =
+		Color3.fromRGB(
+			27,
+			30,
+			36
+		)
+
 	valueLabel.BorderSizePixel = 0
-	valueLabel.Font = Enum.Font.GothamSemibold
-	valueLabel.Text = tostring(default)
-	valueLabel.TextColor3 = Theme.Accent
-	valueLabel.TextSize = 10
+
+	valueLabel.Font =
+		Enum.Font.GothamSemibold
+
+	valueLabel.Text =
+		tostring(default)
+
+	valueLabel.TextColor3 =
+		Theme.Accent
+
+	valueLabel.TextSize = 9
 	valueLabel.Parent = card
+
 	corner(valueLabel, 6)
 
-	local track = Instance.new("Frame")
-	track.Size = UDim2.new(1, -28, 0, 5)
-	track.Position = UDim2.fromOffset(14, 52)
-	track.BackgroundColor3 = Color3.fromRGB(42, 46, 55)
+	local track =
+		Instance.new("Frame")
+
+	track.Size =
+		UDim2.new(
+			1,
+			-26,
+			0,
+			5
+		)
+
+	track.Position =
+		UDim2.fromOffset(
+			13,
+			51
+		)
+
+	track.BackgroundColor3 =
+		Color3.fromRGB(
+			40,
+			44,
+			52
+		)
+
 	track.BorderSizePixel = 0
 	track.Parent = card
-	corner(track, 6)
 
-	local fill = Instance.new("Frame")
-	fill.Size = UDim2.new(
-		(default - minimum) / (maximum - minimum),
-		0,
-		1,
-		0
-	)
-	fill.BackgroundColor3 = Theme.Accent
+	corner(track, 5)
+
+	local initial =
+		(default - minimum)
+		/ (maximum - minimum)
+
+	local fill =
+		Instance.new("Frame")
+
+	fill.Size =
+		UDim2.new(
+			initial,
+			0,
+			1,
+			0
+		)
+
+	fill.BackgroundColor3 =
+		Theme.Accent
+
 	fill.BorderSizePixel = 0
 	fill.Parent = track
-	corner(fill, 6)
 
-	local knob = Instance.new("Frame")
-	knob.AnchorPoint = Vector2.new(0.5, 0.5)
-	knob.Size = UDim2.fromOffset(13, 13)
-	knob.Position = UDim2.new(
-		(default - minimum) / (maximum - minimum),
-		0,
-		0.5,
-		0
-	)
-	knob.BackgroundColor3 = Theme.Text
+	corner(fill, 5)
+
+	local knob =
+		Instance.new("Frame")
+
+	knob.AnchorPoint =
+		Vector2.new(
+			0.5,
+			0.5
+		)
+
+	knob.Size =
+		UDim2.fromOffset(
+			12,
+			12
+		)
+
+	knob.Position =
+		UDim2.new(
+			initial,
+			0,
+			0.5,
+			0
+		)
+
+	knob.BackgroundColor3 =
+		Theme.Text
+
 	knob.BorderSizePixel = 0
 	knob.Parent = track
+
 	corner(knob, 10)
 
 	local dragging = false
 
 	local function update(input)
-		local x = math.clamp(
-			input.Position.X - track.AbsolutePosition.X,
-			0,
-			track.AbsoluteSize.X
-		)
+		local x =
+			math.clamp(
+				input.Position.X
+					- track.AbsolutePosition.X,
 
-		local percentage = x / track.AbsoluteSize.X
+				0,
 
-		local value = math.floor(
-			minimum +
-			((maximum - minimum) * percentage)
-		)
+				track.AbsoluteSize.X
+			)
 
-		fill.Size = UDim2.new(percentage, 0, 1, 0)
-		knob.Position = UDim2.new(percentage, 0, 0.5, 0)
-		valueLabel.Text = tostring(value)
+		local percent =
+			x / track.AbsoluteSize.X
 
-		callback(value)
+		local result =
+			math.floor(
+				minimum
+				+ (
+					maximum
+					- minimum
+				)
+				* percent
+			)
+
+		fill.Size =
+			UDim2.new(
+				percent,
+				0,
+				1,
+				0
+			)
+
+		knob.Position =
+			UDim2.new(
+				percent,
+				0,
+				0.5,
+				0
+			)
+
+		valueLabel.Text =
+			tostring(result)
+
+		callback(result)
 	end
 
 	track.InputBegan:Connect(function(input)
 		if
-			input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch
+			input.UserInputType
+				== Enum.UserInputType.MouseButton1
+			or input.UserInputType
+				== Enum.UserInputType.Touch
 		then
 			dragging = true
 			update(input)
@@ -1682,8 +3393,10 @@ local function slider(
 		end
 
 		if
-			input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch
+			input.UserInputType
+				== Enum.UserInputType.MouseMovement
+			or input.UserInputType
+				== Enum.UserInputType.Touch
 		then
 			update(input)
 		end
@@ -1691,209 +3404,330 @@ local function slider(
 
 	UserInputService.InputEnded:Connect(function(input)
 		if
-			input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch
+			input.UserInputType
+				== Enum.UserInputType.MouseButton1
+			or input.UserInputType
+				== Enum.UserInputType.Touch
 		then
 			dragging = false
 		end
 	end)
 end
 
-section(seedPage, "Automation")
+local function createNumberInput(
+	parent,
+	title,
+	description,
+	default,
+	minimum,
+	maximum,
+	callback
+)
+	local card =
+		Instance.new("Frame")
 
-toggle(
-	seedPage,
+	card.Size =
+		UDim2.new(
+			1,
+			0,
+			0,
+			67
+		)
+
+	card.BackgroundColor3 =
+		Theme.Card
+
+	card.BorderSizePixel = 0
+	card.Parent = parent
+
+	corner(card, 8)
+	stroke(card)
+
+	local titleText =
+		Instance.new("TextLabel")
+
+	titleText.Size =
+		UDim2.new(
+			1,
+			-105,
+			0,
+			18
+		)
+
+	titleText.Position =
+		UDim2.fromOffset(
+			13,
+			10
+		)
+
+	titleText.BackgroundTransparency = 1
+
+	titleText.Font =
+		Enum.Font.GothamSemibold
+
+	titleText.Text = title
+
+	titleText.TextColor3 =
+		Theme.Text
+
+	titleText.TextSize = 11
+
+	titleText.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	titleText.Parent = card
+
+	local desc =
+		Instance.new("TextLabel")
+
+	desc.Size =
+		UDim2.new(
+			1,
+			-105,
+			0,
+			16
+		)
+
+	desc.Position =
+		UDim2.fromOffset(
+			13,
+			34
+		)
+
+	desc.BackgroundTransparency = 1
+
+	desc.Font =
+		Enum.Font.Gotham
+
+	desc.Text = description
+
+	desc.TextColor3 =
+		Theme.SubText
+
+	desc.TextSize = 9
+
+	desc.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	desc.Parent = card
+
+	local box =
+		Instance.new("TextBox")
+
+	box.Size =
+		UDim2.fromOffset(
+			78,
+			32
+		)
+
+	box.Position =
+		UDim2.new(
+			1,
+			-91,
+			0.5,
+			-16
+		)
+
+	box.BackgroundColor3 =
+		Color3.fromRGB(
+			27,
+			30,
+			36
+		)
+
+	box.BorderSizePixel = 0
+
+	box.ClearTextOnFocus = false
+
+	box.Font =
+		Enum.Font.GothamSemibold
+
+	box.Text =
+		tostring(default)
+
+	box.TextColor3 =
+		Theme.Accent
+
+	box.TextSize = 10
+
+	box.Parent = card
+
+	corner(box, 6)
+	stroke(box)
+
+	box.FocusLost:Connect(function()
+		local number =
+			tonumber(box.Text)
+
+		if not number then
+			box.Text =
+				tostring(default)
+
+			return
+		end
+
+		number =
+			math.clamp(
+				number,
+				minimum,
+				maximum
+			)
+
+		number =
+			math.floor(
+				number * 100
+			) / 100
+
+		box.Text =
+			tostring(number)
+
+		callback(number)
+	end)
+
+	return box
+end
+
+--========================================================
+-- SEED TAB
+--========================================================
+
+section(
+	SeedPage,
+	"Automation"
+)
+
+createToggle(
+	SeedPage,
+
 	"Auto Buy Seeds",
-	"Buys every seed currently available in stock.",
+
+	"Automatically buys spawned seeds.",
+
 	function(value)
 		State.AutoBuy = value
 
 		notify(
 			"Auto Buy",
-			value and "Seed buying enabled." or "Seed buying disabled."
+			value
+				and "Seed buyer enabled."
+				or "Seed buyer disabled."
 		)
 	end
 )
 
-toggle(
-	seedPage,
+createToggle(
+	SeedPage,
+
 	"Auto Harvest",
-	"Harvests ready plants from your own farm.",
+
+	"Fast collects Collect prompts on your farm.",
+
 	function(value)
 		State.AutoHarvest = value
 
 		notify(
 			"Auto Harvest",
-			value and "Harvesting enabled." or "Harvesting disabled."
+			value
+				and "Harvest enabled."
+				or "Harvest disabled."
 		)
 	end
 )
 
-toggle(
-	seedPage,
+createToggle(
+	SeedPage,
+
 	"Auto Sell",
-	"Sells your inventory automatically every 2 seconds.",
+
+	"Sells your inventory every 2 seconds.",
+
 	function(value)
 		State.AutoSell = value
 
 		notify(
 			"Auto Sell",
-			value and "Selling enabled." or "Selling disabled."
+			value
+				and "Selling enabled."
+				or "Selling disabled."
 		)
 	end
 )
 
-section(seedPage, "Inventory")
+section(
+	SeedPage,
+	"Inventory"
+)
 
-actionButton(
-	seedPage,
+createAction(
+	SeedPage,
+
 	"Sell Inventory",
-	"Immediately sells everything in your inventory.",
+
+	"Sell everything right now.",
+
+	"SELL",
+
 	function()
-		task.spawn(sell)
+		local success =
+			sellInventory()
 
 		notify(
 			"Inventory",
-			"Sell request sent."
+			success
+				and "Sell request sent."
+				or "Seller not found."
 		)
 	end
 )
 
-section(utilityPage, "Shops")
+--========================================================
+-- PLAYER TAB
+--========================================================
 
-actionButton(
-	utilityPage,
-	"Open Gear Shop",
-	"Opens the Gear Shop prompt from anywhere.",
-	function()
-		local ok = openShop("Gear")
-		notify("Utility", ok and "Gear Shop opened." or "Gear Shop prompt was not found.")
-	end
+section(
+	PlayerPage,
+	"Movement"
 )
 
-actionButton(
-	utilityPage,
-	"Open Furniture",
-	"Opens the Furniture shop prompt.",
-	function()
-		local ok = openShop("Furniture")
-		notify("Utility", ok and "Furniture opened." or "Furniture prompt was not found.")
-	end
-)
+createToggle(
+	PlayerPage,
 
-actionButton(
-	utilityPage,
-	"Open Farmers Market",
-	"Opens the Farmers Market prompt.",
-	function()
-		local ok = openShop("Market")
-		notify("Utility", ok and "Farmers Market opened." or "Market prompt was not found.")
-	end
-)
-
-actionButton(
-	utilityPage,
-	"Open Pet Shop",
-	"Opens the Pets shop prompt.",
-	function()
-		local ok = openShop("Pets")
-		notify("Utility", ok and "Pet Shop opened." or "Pet Shop prompt was not found.")
-	end
-)
-
-section(utilityPage, "Session")
-
-toggle(
-	utilityPage,
-	"Anti AFK",
-	"Prevents the normal idle kick while this is enabled.",
-	function(value)
-		State.AntiIdle = value
-		notify(
-			"Anti AFK",
-			value and "Idle protection enabled." or "Idle protection disabled."
-		)
-	end
-)
-
-actionButton(
-	utilityPage,
-	"Rejoin Server",
-	"Reconnects you to this same server.",
-	function()
-		notify("Utility", "Rejoining server...")
-		local ok = rejoinServer()
-		if not ok then
-			notify("Utility", "Rejoin failed. Try again in a moment.")
-		end
-	end
-)
-
-actionButton(
-	utilityPage,
-	"Leave Server",
-	"Disconnects you from the current server.",
-	function()
-		leaveServer()
-	end
-)
-
-actionButton(
-	utilityPage,
-	"Reset Character",
-	"Respawns your character without leaving the server.",
-	function()
-		local ok = resetCharacter()
-		notify("Utility", ok and "Character reset." or "Character is not ready.")
-	end
-)
-
-actionButton(
-	utilityPage,
-	"Copy Server ID",
-	"Copies the current JobId so you can save this server.",
-	function()
-		local ok = copyText(game.JobId)
-		notify("Utility", ok and "Server ID copied." or "Clipboard is not supported.")
-	end
-)
-
-section(playerPage, "Movement")
-
-toggle(
-	playerPage,
 	"Walk Speed",
-	"Overrides your character's movement speed.",
-	function(value)
-		State.Speed = value
-		updateWalkSpeed()
 
-		notify(
-			"Walk Speed",
-			value and "Speed enabled." or "Speed disabled."
-		)
-	end
-)
+	"Override the normal movement speed.",
 
-slider(
-	playerPage,
-	"Walk Speed Value",
-	16,
-	150,
-	State.WalkSpeed,
 	function(value)
 		State.WalkSpeed = value
 
-		if State.Speed then
-			updateWalkSpeed()
+		applyWalkSpeed()
+	end
+)
+
+createSlider(
+	PlayerPage,
+
+	"Walk Speed Value",
+
+	16,
+	150,
+	State.WalkSpeedValue,
+
+	function(value)
+		State.WalkSpeedValue = value
+
+		if State.WalkSpeed then
+			applyWalkSpeed()
 		end
 	end
 )
 
-toggle(
-	playerPage,
+createToggle(
+	PlayerPage,
+
 	"Fly",
-	"Free movement using WASD, Space/E and Ctrl/Q.",
+
+	"WASD movement, Space/E up, Ctrl/Q down.",
+
 	function(value)
 		State.Fly = value
 
@@ -1902,98 +3736,402 @@ toggle(
 		else
 			stopFly()
 		end
-
-		notify(
-			"Fly",
-			value and "Flight enabled." or "Flight disabled."
-		)
 	end
 )
 
-slider(
-	playerPage,
+createSlider(
+	PlayerPage,
+
 	"Fly Speed",
+
 	20,
 	200,
 	State.FlySpeed,
+
 	function(value)
 		State.FlySpeed = value
 	end
 )
 
+--========================================================
+-- EMOTES TAB
+--========================================================
+
+section(
+	EmotePage,
+	"Emoji Spammer"
+)
+
+createToggle(
+	EmotePage,
+
+	"Spam Emotes",
+
+	"Cycles through the emotes in the game's Emotes menu.",
+
+	function(value)
+		State.EmoteSpam = value
+
+		currentEmote = 0
+
+		notify(
+			"Emote Spammer",
+
+			value
+				and "Emote spam enabled."
+				or "Emote spam disabled."
+		)
+	end
+)
+
+createNumberInput(
+	EmotePage,
+
+	"Spam Delay",
+
+	"Seconds between each emote. Example: 0.1",
+
+	State.EmoteDelay,
+
+	0.05,
+	10,
+
+	function(value)
+		State.EmoteDelay = value
+
+		notify(
+			"Emote Speed",
+
+			"Delay set to "
+				.. tostring(value)
+				.. " seconds."
+		)
+	end
+)
+
+section(
+	EmotePage,
+	"Controls"
+)
+
+createAction(
+	EmotePage,
+
+	"Open Emotes",
+
+	"Opens the game's Emotes menu.",
+
+	"OPEN",
+
+	function()
+		local success =
+			openEmotesMenu()
+
+		notify(
+			"Emotes",
+
+			success
+				and "Emote menu opened."
+				or "Emote button not found."
+		)
+	end
+)
+
+createAction(
+	EmotePage,
+
+	"Send Next Emote",
+
+	"Sends one emote for testing.",
+
+	"SEND",
+
+	function()
+		local success =
+			sendNextEmote()
+
+		notify(
+			"Emotes",
+
+			success
+				and "Emote sent."
+				or "No emote buttons found."
+		)
+	end
+)
+
+--========================================================
+-- UTILITY TAB
+--========================================================
+
+section(
+	UtilityPage,
+	"Shops"
+)
+
+createAction(
+	UtilityPage,
+
+	"Open Gear Shop",
+
+	"Open the Gear Shop from anywhere.",
+
+	"OPEN",
+
+	function()
+		local success =
+			openShop("Gear")
+
+		notify(
+			"Gear Shop",
+
+			success
+				and "Shop opened."
+				or "Shop prompt not found."
+		)
+	end
+)
+
+createAction(
+	UtilityPage,
+
+	"Open Furniture",
+
+	"Open the Furniture shop.",
+
+	"OPEN",
+
+	function()
+		local success =
+			openShop("Furniture")
+
+		notify(
+			"Furniture",
+
+			success
+				and "Shop opened."
+				or "Shop prompt not found."
+		)
+	end
+)
+
+createAction(
+	UtilityPage,
+
+	"Open Farmers Market",
+
+	"Open the Farmers Market.",
+
+	"OPEN",
+
+	function()
+		local success =
+			openShop("Market")
+
+		notify(
+			"Farmers Market",
+
+			success
+				and "Market opened."
+				or "Market prompt not found."
+		)
+	end
+)
+
+createAction(
+	UtilityPage,
+
+	"Open Pet Shop",
+
+	"Open the Pets shop.",
+
+	"OPEN",
+
+	function()
+		local success =
+			openShop("Pets")
+
+		notify(
+			"Pet Shop",
+
+			success
+				and "Shop opened."
+				or "Shop prompt not found."
+		)
+	end
+)
+
+section(
+	UtilityPage,
+	"Session"
+)
+
+createToggle(
+	UtilityPage,
+
+	"Anti AFK",
+
+	"Stops the normal Roblox idle kick.",
+
+	function(value)
+		State.AntiAFK = value
+
+		notify(
+			"Anti AFK",
+
+			value
+				and "Idle protection enabled."
+				or "Idle protection disabled."
+		)
+	end
+)
+
+createAction(
+	UtilityPage,
+
+	"Rejoin Server",
+
+	"Reconnect to the same server.",
+
+	"JOIN",
+
+	function()
+		rejoin()
+	end
+)
+
+createAction(
+	UtilityPage,
+
+	"Leave Server",
+
+	"Disconnect from the game.",
+
+	"LEAVE",
+
+	function()
+		leave()
+	end
+)
+
+createAction(
+	UtilityPage,
+
+	"Reset Character",
+
+	"Respawn your character.",
+
+	"RESET",
+
+	function()
+		resetCharacter()
+	end
+)
+
+createAction(
+	UtilityPage,
+
+	"Copy Server ID",
+
+	"Copy the current server JobId.",
+
+	"COPY",
+
+	function()
+		local success =
+			copyText(game.JobId)
+
+		notify(
+			"Server ID",
+
+			success
+				and "Server ID copied."
+				or "Clipboard unsupported."
+		)
+	end
+)
+
+--========================================================
+-- DEFAULT PAGE
+--========================================================
+
 switchPage(
-	"Seeds",
+	"Seed",
 	"Seed Farm",
 	"Farm automation"
 )
 
-getKeyButton.MouseEnter:Connect(function()
-	tween(getKeyButton, 0.15, {
-		BackgroundColor3 = Theme.CardHover
-	})
-end)
+--========================================================
+-- KEY BUTTONS
+--========================================================
 
-getKeyButton.MouseLeave:Connect(function()
-	tween(getKeyButton, 0.15, {
-		BackgroundColor3 = Theme.Card
-	})
-end)
+GetKey.MouseButton1Click:Connect(function()
+	local success =
+		copyText(KEY_LINK)
 
-unlockButton.MouseEnter:Connect(function()
-	tween(unlockButton, 0.15, {
-		BackgroundColor3 = Color3.fromRGB(93, 230, 139)
-	})
-end)
+	if success then
+		KeyStatus.Text =
+			"Key link copied to clipboard"
 
-unlockButton.MouseLeave:Connect(function()
-	tween(unlockButton, 0.15, {
-		BackgroundColor3 = Theme.Accent
-	})
-end)
+		KeyStatus.TextColor3 =
+			Theme.Accent
 
-local function copyKeyLink()
-	local copied = copyText(KEY_LINK)
-
-	if copied then
-		keyStatus.Text = "Key link copied to clipboard"
-		keyStatus.TextColor3 = Theme.Accent
-
-		getKeyButton.Text = "Copied"
+		GetKey.Text = "Copied"
 
 		task.delay(1.5, function()
-			if getKeyButton.Parent then
-				getKeyButton.Text = "Get Access Key"
+			if GetKey.Parent then
+				GetKey.Text =
+					"Get Access Key"
 			end
 		end)
 	else
-		keyStatus.Text = "Clipboard is not supported"
-		keyStatus.TextColor3 = Theme.Danger
+		KeyStatus.Text =
+			"Clipboard is not supported"
+
+		KeyStatus.TextColor3 =
+			Theme.Danger
 	end
-end
+end)
 
 local function unlock()
 	if State.Unlocked then
 		return
 	end
 
-	if keyBox.Text ~= KEY then
-		keyStatus.Text = "Invalid access key"
-		keyStatus.TextColor3 = Theme.Danger
+	if KeyBox.Text ~= KEY then
+		KeyStatus.Text =
+			"Invalid access key"
 
-		tween(keyBox, 0.1, {
-			Position = UDim2.fromOffset(17, 135)
+		KeyStatus.TextColor3 =
+			Theme.Danger
+
+		local original =
+			KeyBox.Position
+
+		tween(KeyBox, 0.06, {
+			Position =
+				original
+				+ UDim2.fromOffset(
+					-5,
+					0
+				),
 		})
 
-		task.wait(0.1)
+		task.wait(0.06)
 
-		tween(keyBox, 0.1, {
-			Position = UDim2.fromOffset(27, 135)
+		tween(KeyBox, 0.06, {
+			Position =
+				original
+				+ UDim2.fromOffset(
+					5,
+					0
+				),
 		})
 
-		task.wait(0.1)
+		task.wait(0.06)
 
-		tween(keyBox, 0.1, {
-			Position = UDim2.fromOffset(22, 135)
+		tween(KeyBox, 0.06, {
+			Position = original,
 		})
 
 		return
@@ -2001,51 +4139,67 @@ local function unlock()
 
 	State.Unlocked = true
 
-	keyStatus.Text = "Access granted"
-	keyStatus.TextColor3 = Theme.Accent
+	KeyStatus.Text =
+		"Access granted"
 
-	unlockButton.Text = "Unlocked"
+	KeyStatus.TextColor3 =
+		Theme.Accent
 
-	task.wait(0.35)
+	Continue.Text =
+		"Unlocked"
 
-	tween(keyWindow, 0.25, {
-		BackgroundTransparency = 1
-	})
+	task.wait(0.25)
 
-	task.wait(0.15)
+	KeyWindow.Visible = false
+	Main.Visible = true
 
-	keyWindow.Visible = false
-	main.Visible = true
+	Main.Size =
+		UDim2.fromOffset(
+			650,
+			420
+		)
 
-	main.Size = UDim2.fromOffset(620, 400)
-	main.BackgroundTransparency = 1
+	Main.BackgroundTransparency = 1
 
-	tween(main, 0.3, {
-		Size = UDim2.fromOffset(680, 440),
-		BackgroundTransparency = 0
+	tween(Main, 0.27, {
+		Size =
+			UDim2.fromOffset(
+				700,
+				455
+			),
+
+		BackgroundTransparency = 0,
 	})
 
 	notify(
 		"Gridi Growers",
-		"Welcome, " .. player.DisplayName .. "."
+
+		"Welcome, "
+			.. player.DisplayName
+			.. "."
 	)
 end
 
-getKeyButton.MouseButton1Click:Connect(copyKeyLink)
-unlockButton.MouseButton1Click:Connect(unlock)
+Continue.MouseButton1Click:Connect(
+	unlock
+)
 
-keyBox.FocusLost:Connect(function(enterPressed)
+KeyBox.FocusLost:Connect(function(enterPressed)
 	if enterPressed then
 		unlock()
 	end
 end)
 
-minimize.MouseButton1Click:Connect(function()
-	main.Visible = false
+--========================================================
+-- WINDOW BUTTONS
+--========================================================
+
+Minimize.MouseButton1Click:Connect(function()
+	Main.Visible = false
 end)
 
-close.MouseButton1Click:Connect(function()
-	main.Visible = false
+Close.MouseButton1Click:Connect(function()
+	Main.Visible = false
 end)
 
 UserInputService.InputBegan:Connect(function(input, processed)
@@ -2054,85 +4208,149 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 
 	if
-		input.KeyCode == Enum.KeyCode.RightShift
+		input.KeyCode
+			== Enum.KeyCode.RightShift
 		and State.Unlocked
 	then
-		main.Visible = not main.Visible
+		Main.Visible =
+			not Main.Visible
 	end
 end)
+
+--========================================================
+-- SPEED LOOP
+--========================================================
 
 RunService.Heartbeat:Connect(function()
-	if State.Speed then
-		local humanoid = getHumanoid()
+	if not State.WalkSpeed then
+		return
+	end
 
-		if humanoid and humanoid.WalkSpeed ~= State.WalkSpeed then
-			humanoid.WalkSpeed = State.WalkSpeed
-		end
+	local humanoid =
+		getHumanoid()
+
+	if
+		humanoid
+		and humanoid.WalkSpeed
+			~= State.WalkSpeedValue
+	then
+		humanoid.WalkSpeed =
+			State.WalkSpeedValue
 	end
 end)
 
+--========================================================
+-- AUTO BUY LOOP
+--========================================================
+
 task.spawn(function()
-	while screen.Parent do
-		if State.Unlocked and State.AutoBuy then
-			pcall(buyStock)
+	while Screen.Parent do
+		if
+			State.Unlocked
+			and State.AutoBuy
+		then
+			pcall(autoBuySeeds)
 		end
 
 		task.wait(0.45)
 	end
 end)
 
+--========================================================
+-- HARVEST LOOP
+--========================================================
+
 task.spawn(function()
-	while screen.Parent do
-		if State.Unlocked and State.AutoHarvest then
-			pcall(harvest)
+	while Screen.Parent do
+		if
+			State.Unlocked
+			and State.AutoHarvest
+		then
+			pcall(harvestAll)
 		end
 
-		task.wait(0.14)
+		task.wait(0.12)
 	end
 end)
 
+--========================================================
+-- AUTO SELL LOOP
+--========================================================
+
 task.spawn(function()
-	while screen.Parent do
-		if State.Unlocked and State.AutoSell then
-			pcall(sell)
+	while Screen.Parent do
+		if
+			State.Unlocked
+			and State.AutoSell
+		then
+			pcall(sellInventory)
 		end
 
 		task.wait(2)
 	end
 end)
 
-player.CharacterAdded:Connect(function()
-	task.wait(1)
+--========================================================
+-- EMOTE SPAM LOOP
+--========================================================
 
-	if State.Speed then
-		updateWalkSpeed()
+task.spawn(function()
+	while Screen.Parent do
+		if
+			State.Unlocked
+			and State.EmoteSpam
+		then
+			pcall(sendNextEmote)
+
+			task.wait(
+				State.EmoteDelay
+			)
+		else
+			task.wait(0.1)
+		end
+	end
+end)
+
+--========================================================
+-- RESPAWN
+--========================================================
+
+player.CharacterAdded:Connect(function()
+	task.wait(0.8)
+
+	if State.WalkSpeed then
+		applyWalkSpeed()
 	end
 
 	if State.Fly then
-		task.wait(0.35)
+		task.wait(0.3)
 		startFly()
 	end
 end)
 
+--========================================================
+-- CLEANUP
+--========================================================
 
 _G.GridiGrowersCleanup = function()
 	State.AutoBuy = false
 	State.AutoHarvest = false
 	State.AutoSell = false
-	State.AntiIdle = false
 	State.Fly = false
+	State.AntiAFK = false
+	State.EmoteSpam = false
 
 	pcall(stopFly)
 
-	if antiIdleConnection then
+	if idleConnection then
 		pcall(function()
-			antiIdleConnection:Disconnect()
+			idleConnection:Disconnect()
 		end)
 	end
 
-	if screen and screen.Parent then
+	if Screen and Screen.Parent then
 		pcall(function()
-			screen:Destroy()
+			Screen:Destroy()
 		end)
 	end
 end
