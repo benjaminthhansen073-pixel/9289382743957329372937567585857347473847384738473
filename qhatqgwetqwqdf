@@ -30,8 +30,8 @@ end
 _G.THHGrowersCleanup = nil
 _G.GridiGrowersCleanup = nil
 
-local KEY = [[1029peou746s"h1212]]
-local KEY_LINK = "https://link-target.net/3287847/ntYxCXSBfWqQ"
+local KEY = "THH-HUB-KEY-1923721383712"
+local KEY_LINK = "https://link-target.net/9147869/bAv6CXKXMOIG"
 
 local State = {
 	Unlocked = false,
