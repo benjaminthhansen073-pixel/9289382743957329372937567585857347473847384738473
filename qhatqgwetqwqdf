@@ -752,6 +752,9 @@ local harvestPrompts = {}
 local plantsAddedConnection
 local plantsRemovingConnection
 
+local selling = false
+local harvesting = false
+
 local function isHarvestPrompt(prompt)
 	if not prompt:IsA("ProximityPrompt") then
 		return false
@@ -766,6 +769,9 @@ local function isHarvestPrompt(prompt)
 		string.lower(
 			prompt.ObjectText or ""
 		)
+
+	local info =
+		promptInfo(prompt)
 
 	if string.find(
 		action,
@@ -785,14 +791,39 @@ local function isHarvestPrompt(prompt)
 		return true
 	end
 
-	if
-		string.find(
-			objectText,
-			"collect",
-			1,
-			true
-		)
-	then
+	if string.find(
+		action,
+		"pick",
+		1,
+		true
+	) then
+		return true
+	end
+
+	if string.find(
+		objectText,
+		"collect",
+		1,
+		true
+	) then
+		return true
+	end
+
+	if string.find(
+		info,
+		"collect",
+		1,
+		true
+	) then
+		return true
+	end
+
+	if string.find(
+		info,
+		"harvest",
+		1,
+		true
+	) then
 		return true
 	end
 
@@ -981,41 +1012,301 @@ local function updateHarvestPlatform()
 		)
 end
 
-local function spamOwnHarvest()
-	if not State.AutoHarvest then
-		return
+local function flyToHarvestPrompt(prompt)
+	if
+		not State.AutoHarvest
+		or State.Unloading
+		or selling
+	then
+		return false
 	end
 
-	if not watchedPlants or not watchedPlants.Parent then
-		watchOwnPlants()
-
-		return
+	if not prompt or not prompt.Parent then
+		return false
 	end
 
-	for prompt in pairs(harvestPrompts) do
+	local character =
+		getCharacter()
+
+	local root =
+		getRoot()
+
+	local humanoid =
+		getHumanoid()
+
+	local part =
+		getPromptPart(prompt)
+
+	if
+		not character
+		or not root
+		or not humanoid
+		or not part
+	then
+		return false
+	end
+
+	local destination =
+		part.CFrame
+		* CFrame.new(
+			0,
+			2.5,
+			1.2
+		)
+
+	local distance =
+		(
+			root.Position
+			- destination.Position
+		).Magnitude
+
+	local duration =
+		math.clamp(
+			distance / 95,
+			0.08,
+			1.5
+		)
+
+	local oldPlatformStand =
+		humanoid.PlatformStand
+
+	local oldAutoRotate =
+		humanoid.AutoRotate
+
+	pcall(function()
+		root.AssemblyLinearVelocity =
+			Vector3.zero
+
+		root.AssemblyAngularVelocity =
+			Vector3.zero
+
+		humanoid.PlatformStand = true
+		humanoid.AutoRotate = false
+	end)
+
+	local movement =
+		TweenService:Create(
+			root,
+			TweenInfo.new(
+				duration,
+				Enum.EasingStyle.Linear,
+				Enum.EasingDirection.Out
+			),
+			{
+				CFrame = destination
+			}
+		)
+
+	local finished = false
+
+	local completed =
+		movement.Completed:
+			Connect(function()
+				finished = true
+			end)
+
+	movement:Play()
+
+	local started =
+		os.clock()
+
+	while
+		not finished
+		and root.Parent
+		and os.clock() - started
+			< duration + 0.5
+	do
 		if
 			not State.AutoHarvest
 			or State.Unloading
+			or selling
 		then
+			pcall(function()
+				movement:Cancel()
+			end)
+
 			break
 		end
 
+		RunService.Heartbeat:Wait()
+	end
+
+	completed:Disconnect()
+
+	if
+		humanoid
+		and humanoid.Parent
+	then
+		if State.Fly then
+			humanoid.PlatformStand = true
+			humanoid.AutoRotate = false
+		else
+			humanoid.PlatformStand =
+				oldPlatformStand
+
+			humanoid.AutoRotate =
+				oldAutoRotate
+		end
+	end
+
+	if
+		not State.AutoHarvest
+		or State.Unloading
+		or selling
+	then
+		return false
+	end
+
+	return true
+end
+
+local function getSortedHarvestPrompts()
+	local root =
+		getRoot()
+
+	if not root then
+		return {}
+	end
+
+	local list = {}
+
+	for prompt in pairs(harvestPrompts) do
 		if
-			prompt.Parent
+			prompt
+			and prompt.Parent
 			and prompt.Enabled
+			and watchedPlants
 			and prompt:IsDescendantOf(
 				watchedPlants
 			)
 		then
-			setupPrompt(prompt)
+			local part =
+				getPromptPart(prompt)
 
-			triggerPrompt(prompt)
+			if part then
+				table.insert(
+					list,
+					{
+						Prompt = prompt,
+						Distance =
+							(
+								root.Position
+								- part.Position
+							).Magnitude
+					}
+				)
+			end
 		else
 			if not prompt.Parent then
 				harvestPrompts[prompt] = nil
 			end
 		end
 	end
+
+	table.sort(
+		list,
+		function(a, b)
+			return
+				a.Distance
+				< b.Distance
+		end
+	)
+
+	return list
+end
+
+local function harvestOwnCrops()
+	if harvesting then
+		return
+	end
+
+	if
+		not State.AutoHarvest
+		or State.Unloading
+		or selling
+	then
+		return
+	end
+
+	harvesting = true
+
+	local success =
+		pcall(function()
+
+			watchOwnPlants()
+
+			if
+				not watchedPlants
+				or not watchedPlants.Parent
+			then
+				return
+			end
+
+			local prompts =
+				getSortedHarvestPrompts()
+
+			for _, data in ipairs(prompts) do
+				if
+					not State.AutoHarvest
+					or State.Unloading
+					or selling
+				then
+					break
+				end
+
+				local prompt =
+					data.Prompt
+
+				if
+					prompt
+					and prompt.Parent
+					and prompt.Enabled
+					and prompt:IsDescendantOf(
+						watchedPlants
+					)
+				then
+					local moved =
+						flyToHarvestPrompt(
+							prompt
+						)
+
+					if
+						moved
+						and prompt.Parent
+						and prompt.Enabled
+					then
+						setupPrompt(
+							prompt
+						)
+
+						triggerPrompt(
+							prompt
+						)
+
+						task.wait(0.035)
+
+						if
+							prompt.Parent
+							and prompt.Enabled
+						then
+							triggerPrompt(
+								prompt
+							)
+						end
+
+						task.wait(0.055)
+					end
+				end
+			end
+		end)
+
+	harvesting = false
+
+	return success
+end
+
+local function spamOwnHarvest()
+	return harvestOwnCrops()
 end
 
 local sellerPrompt
@@ -1024,6 +1315,7 @@ local function findSellerPrompt()
 	if
 		sellerPrompt
 		and sellerPrompt.Parent
+		and sellerPrompt.Enabled
 	then
 		return sellerPrompt
 	end
@@ -1046,8 +1338,14 @@ local function findSellerPrompt()
 			for _, object in ipairs(
 				npc:GetDescendants()
 			) do
-				if object:IsA("ProximityPrompt") then
-					sellerPrompt = object
+				if
+					object:IsA(
+						"ProximityPrompt"
+					)
+					and object.Enabled
+				then
+					sellerPrompt =
+						object
 
 					return object
 				end
@@ -1055,8 +1353,13 @@ local function findSellerPrompt()
 		end
 	end
 
-	for _, object in ipairs(workspace:GetDescendants()) do
-		if object:IsA("ProximityPrompt") then
+	for _, object in ipairs(
+		workspace:GetDescendants()
+	) do
+		if
+			object:IsA("ProximityPrompt")
+			and object.Enabled
+		then
 			local info =
 				promptInfo(object)
 
@@ -1080,7 +1383,8 @@ local function findSellerPrompt()
 					true
 				)
 			then
-				sellerPrompt = object
+				sellerPrompt =
+					object
 
 				return object
 			end
@@ -1114,13 +1418,18 @@ end
 local function findSellInventoryButton()
 	local searches = {
 		"i want to sell my inventory",
+		"i want to sell inventory",
 		"sell my inventory",
+		"sell the inventory",
 		"sell whole inventory",
 		"sell inventory",
-		"sell everything"
+		"sell everything",
+		"sell all"
 	}
 
-	for _, object in ipairs(playerGui:GetDescendants()) do
+	for _, object in ipairs(
+		playerGui:GetDescendants()
+	) do
 		if
 			(
 				object:IsA("TextLabel")
@@ -1133,7 +1442,9 @@ local function findSellInventoryButton()
 					object.Text
 				)
 
-			for _, search in ipairs(searches) do
+			for _, search in ipairs(
+				searches
+			) do
 				if string.find(
 					text,
 					search,
@@ -1151,7 +1462,11 @@ local function findSellInventoryButton()
 						current
 						and current ~= playerGui
 					do
-						if current:IsA("GuiButton") then
+						if
+							current:IsA(
+								"GuiButton"
+							)
+						then
 							return current
 						end
 
@@ -1163,7 +1478,9 @@ local function findSellInventoryButton()
 		end
 	end
 
-	for _, object in ipairs(playerGui:GetDescendants()) do
+	for _, object in ipairs(
+		playerGui:GetDescendants()
+	) do
 		if
 			object:IsA("GuiButton")
 			and guiVisible(object)
@@ -1173,7 +1490,9 @@ local function findSellInventoryButton()
 					getGuiText(object)
 				)
 
-			for _, search in ipairs(searches) do
+			for _, search in ipairs(
+				searches
+			) do
 				if string.find(
 					text,
 					search,
@@ -1189,11 +1508,9 @@ local function findSellInventoryButton()
 	return nil
 end
 
-local selling = false
-
 local function clickSellDialogue()
 	local endTime =
-		os.clock() + 2.5
+		os.clock() + 3
 
 	while
 		os.clock() < endTime
@@ -1207,7 +1524,7 @@ local function clickSellDialogue()
 				pressButton(button)
 
 			if success then
-				task.wait(0.1)
+				task.wait(0.12)
 
 				return true
 			end
@@ -1219,6 +1536,28 @@ local function clickSellDialogue()
 	return false
 end
 
+local function returnToPosition(returnCFrame)
+	if
+		not returnCFrame
+		or State.Unloading
+	then
+		return false
+	end
+
+	local character =
+		getCharacter()
+
+	if not character then
+		return false
+	end
+
+	return pcall(function()
+		character:PivotTo(
+			returnCFrame
+		)
+	end)
+end
+
 local function sellInventory()
 	if selling or State.Unloading then
 		return false
@@ -1226,67 +1565,106 @@ local function sellInventory()
 
 	selling = true
 
+	local root =
+		getRoot()
+
+	local returnCFrame =
+		root
+		and root.CFrame
+
 	local sold = false
 
-	local prompt =
-		findSellerPrompt()
+	local success =
+		pcall(function()
 
-	if prompt and prompt.Parent then
-		teleportToPrompt(prompt)
+			local prompt =
+				findSellerPrompt()
 
-		task.wait(0.1)
+			if prompt and prompt.Parent then
+				teleportToPrompt(
+					prompt
+				)
 
-		for _ = 1, 4 do
-			if State.Unloading then
-				break
+				task.wait(0.15)
+
+				for _ = 1, 5 do
+					if State.Unloading then
+						break
+					end
+
+					setupPrompt(
+						prompt
+					)
+
+					triggerPrompt(
+						prompt
+					)
+
+					task.wait(0.12)
+
+					local clicked =
+						clickSellDialogue()
+
+					if clicked then
+						sold = true
+
+						task.wait(0.2)
+
+						break
+					end
+				end
 			end
 
-			setupPrompt(prompt)
+			if not sold then
+				local button =
+					findSellInventoryButton()
 
-			triggerPrompt(prompt)
+				if button then
+					if
+						pressButton(
+							button
+						)
+					then
+						sold = true
 
-			task.wait(0.12)
-
-			local clicked =
-				clickSellDialogue()
-
-			if clicked then
-				sold = true
-
-				task.wait(0.12)
-
-				break
+						task.wait(0.15)
+					end
+				end
 			end
-		end
-	end
 
-	if not sold then
-		local button =
-			findSellInventoryButton()
+			if not sold then
+				local sellRemote =
+					getRemote(
+						"Sell_Inventory"
+					)
 
-		if button then
-			if pressButton(button) then
-				sold = true
+				if sellRemote then
+					local remoteSuccess =
+						pcall(function()
+							sellRemote:
+								FireServer()
+						end)
+
+					if remoteSuccess then
+						sold = true
+					end
+				end
 			end
-		end
-	end
+		end)
 
-	local sellRemote =
-		getRemote("Sell_Inventory")
+	task.wait(0.15)
 
-	if sellRemote then
-		local success =
-			pcall(function()
-				sellRemote:
-					FireServer()
-			end)
-
-		if success then
-			sold = true
-		end
+	if returnCFrame then
+		returnToPosition(
+			returnCFrame
+		)
 	end
 
 	selling = false
+
+	if not success then
+		return false
+	end
 
 	return sold
 end
@@ -2292,7 +2670,7 @@ sidebarLine.BorderSizePixel = 0
 sidebarLine.Parent = sidebar
 
 local brandIcon =
-	Instance.new("Frame")
+	Instance.new("ImageLabel")
 
 brandIcon.Size =
 	UDim2.fromOffset(
@@ -2310,34 +2688,22 @@ brandIcon.BackgroundColor3 =
 	Theme.AccentDark
 
 brandIcon.BorderSizePixel = 0
-brandIcon.Parent = sidebar
+
+brandIcon.Image =
+	"rbxthumb://type=GameIcon&id="
+	.. tostring(game.GameId)
+	.. "&w=150&h=150"
+
+brandIcon.ScaleType =
+	Enum.ScaleType.Crop
+
+brandIcon.Parent =
+	sidebar
 
 corner(
 	brandIcon,
 	8
 )
-
-local brandLetter =
-	Instance.new("TextLabel")
-
-brandLetter.Size =
-	UDim2.fromScale(
-		1,
-		1
-	)
-
-brandLetter.BackgroundTransparency = 1
-
-brandLetter.Font =
-	Enum.Font.GothamBold
-
-brandLetter.Text = "T"
-
-brandLetter.TextColor3 =
-	Theme.Accent
-
-brandLetter.TextSize = 16
-brandLetter.Parent = brandIcon
 
 local brand =
 	Instance.new("TextLabel")
@@ -4051,7 +4417,7 @@ createToggle(
 
 	"Auto Harvest",
 
-	"Fast harvests only your own plot without teleporting you.",
+	"Flies between ready crops on your own plot and collects them.",
 
 	function(value)
 		State.AutoHarvest = value
@@ -4061,7 +4427,7 @@ createToggle(
 
 			notify(
 				"Auto Harvest",
-				"Own-plot harvesting enabled."
+				"Crop-to-crop harvesting enabled."
 			)
 		else
 			destroyHarvestPlatform()
@@ -4079,7 +4445,7 @@ createToggle(
 
 	"Auto Sell",
 
-	"Teleports to the seller and sells your whole inventory.",
+	"TPs to the seller, sells your inventory, then returns you.",
 
 	function(value)
 		State.AutoSell = value
@@ -4103,7 +4469,7 @@ createAction(
 
 	"Sell Whole Inventory",
 
-	"TPs to Steven, opens dialogue and selects sell inventory.",
+	"TPs to Steven, sells inventory, then teleports back.",
 
 	"SELL",
 
@@ -4114,7 +4480,7 @@ createAction(
 		notify(
 			"Sell Inventory",
 			success
-				and "Sell request sent."
+				and "Inventory sell completed."
 				or "Could not complete seller interaction."
 		)
 	end
@@ -4847,13 +5213,16 @@ task.spawn(function()
 		if
 			State.Unlocked
 			and State.AutoHarvest
+			and not selling
 		then
 			pcall(
-				spamOwnHarvest
+				harvestOwnCrops
 			)
-		end
 
-		task.wait(0.035)
+			task.wait(0.05)
+		else
+			task.wait(0.1)
+		end
 	end
 end)
 
@@ -4865,6 +5234,7 @@ task.spawn(function()
 		if
 			State.Unlocked
 			and State.AutoSell
+			and not selling
 		then
 			pcall(
 				sellInventory
