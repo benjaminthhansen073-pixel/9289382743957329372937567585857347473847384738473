@@ -89,16 +89,29 @@ end
 
 local function corner(object, radius)
 	local item = Instance.new("UICorner")
-	item.CornerRadius = UDim.new(0, radius or 8)
+
+	item.CornerRadius =
+		UDim.new(
+			0,
+			radius or 8
+		)
+
 	item.Parent = object
 
 	return item
 end
 
-local function stroke(object, color)
+local function stroke(object, color, transparency)
 	local item = Instance.new("UIStroke")
-	item.Color = color or Theme.Stroke
+
+	item.Color =
+		color or Theme.Stroke
+
 	item.Thickness = 1
+
+	item.Transparency =
+		transparency or 0
+
 	item.Parent = object
 
 	return item
@@ -107,53 +120,949 @@ end
 local function padding(object, left, right, top, bottom)
 	local item = Instance.new("UIPadding")
 
-	item.PaddingLeft = UDim.new(0, left or 0)
-	item.PaddingRight = UDim.new(0, right or 0)
-	item.PaddingTop = UDim.new(0, top or 0)
-	item.PaddingBottom = UDim.new(0, bottom or 0)
+	item.PaddingLeft =
+		UDim.new(
+			0,
+			left or 0
+		)
+
+	item.PaddingRight =
+		UDim.new(
+			0,
+			right or 0
+		)
+
+	item.PaddingTop =
+		UDim.new(
+			0,
+			top or 0
+		)
+
+	item.PaddingBottom =
+		UDim.new(
+			0,
+			bottom or 0
+		)
 
 	item.Parent = object
 
 	return item
 end
 
+local guiParent =
+	playerGui
+
+if typeof(gethui) == "function" then
+	local success, result =
+		pcall(gethui)
+
+	if success and result then
+		guiParent = result
+	end
+end
+
+local oldSelector =
+	guiParent:FindFirstChild(
+		"THHDeviceSelector"
+	)
+
+if oldSelector then
+	oldSelector:Destroy()
+end
+
+local selector =
+	Instance.new("ScreenGui")
+
+selector.Name =
+	"THHDeviceSelector"
+
+selector.ResetOnSpawn = false
+selector.IgnoreGuiInset = true
+selector.DisplayOrder = 1000000
+
+selector.ZIndexBehavior =
+	Enum.ZIndexBehavior.Sibling
+
+selector.Parent =
+	guiParent
+
+local selectorDim =
+	Instance.new("Frame")
+
+selectorDim.Size =
+	UDim2.fromScale(
+		1,
+		1
+	)
+
+selectorDim.BackgroundColor3 =
+	Color3.fromRGB(
+		15,
+		15,
+		15
+	)
+
+selectorDim.BackgroundTransparency =
+	0.38
+
+selectorDim.BorderSizePixel =
+	0
+
+selectorDim.Parent =
+	selector
+
+local selectorPanel =
+	Instance.new("Frame")
+
+selectorPanel.AnchorPoint =
+	Vector2.new(
+		0.5,
+		0.5
+	)
+
+selectorPanel.Size =
+	UDim2.fromOffset(
+		440,
+		245
+	)
+
+selectorPanel.Position =
+	UDim2.fromScale(
+		0.5,
+		0.5
+	)
+
+selectorPanel.BackgroundColor3 =
+	Color3.fromRGB(
+		72,
+		72,
+		72
+	)
+
+selectorPanel.BackgroundTransparency =
+	0.28
+
+selectorPanel.BorderSizePixel =
+	0
+
+selectorPanel.Parent =
+	selector
+
+corner(
+	selectorPanel,
+	8
+)
+
+stroke(
+	selectorPanel,
+	Color3.fromRGB(
+		180,
+		180,
+		180
+	),
+	0.45
+)
+
+local selectorScale =
+	Instance.new("UIScale")
+
+selectorScale.Parent =
+	selectorPanel
+
+local function updateSelectorScale()
+	local camera =
+		workspace.CurrentCamera
+
+	if not camera then
+		return
+	end
+
+	local viewport =
+		camera.ViewportSize
+
+	local scale =
+		math.min(
+			(viewport.X - 24) / 440,
+			(viewport.Y - 24) / 245
+		)
+
+	selectorScale.Scale =
+		math.clamp(
+			scale,
+			0.6,
+			1
+		)
+end
+
+updateSelectorScale()
+
+local selectorTitle =
+	Instance.new("TextLabel")
+
+selectorTitle.Size =
+	UDim2.new(
+		1,
+		-40,
+		0,
+		28
+	)
+
+selectorTitle.Position =
+	UDim2.fromOffset(
+		20,
+		15
+	)
+
+selectorTitle.BackgroundTransparency =
+	1
+
+selectorTitle.Font =
+	Enum.Font.GothamSemibold
+
+selectorTitle.Text =
+	"what are you on?"
+
+selectorTitle.TextColor3 =
+	Color3.fromRGB(
+		235,
+		235,
+		235
+	)
+
+selectorTitle.TextSize =
+	14
+
+selectorTitle.Parent =
+	selectorPanel
+
+local selectorSub =
+	Instance.new("TextLabel")
+
+selectorSub.Size =
+	UDim2.new(
+		1,
+		-40,
+		0,
+		18
+	)
+
+selectorSub.Position =
+	UDim2.fromOffset(
+		20,
+		42
+	)
+
+selectorSub.BackgroundTransparency =
+	1
+
+selectorSub.Font =
+	Enum.Font.Gotham
+
+selectorSub.Text =
+	"pick pc or phone"
+
+selectorSub.TextColor3 =
+	Color3.fromRGB(
+		185,
+		185,
+		185
+	)
+
+selectorSub.TextSize =
+	9
+
+selectorSub.Parent =
+	selectorPanel
+
+local pcLabel =
+	Instance.new("TextLabel")
+
+pcLabel.Size =
+	UDim2.fromOffset(
+		150,
+		22
+	)
+
+pcLabel.Position =
+	UDim2.fromOffset(
+		45,
+		69
+	)
+
+pcLabel.BackgroundTransparency =
+	1
+
+pcLabel.Font =
+	Enum.Font.GothamSemibold
+
+pcLabel.Text =
+	"PC"
+
+pcLabel.TextColor3 =
+	Color3.fromRGB(
+		235,
+		235,
+		235
+	)
+
+pcLabel.TextSize =
+	12
+
+pcLabel.Parent =
+	selectorPanel
+
+local phoneLabel =
+	Instance.new("TextLabel")
+
+phoneLabel.Size =
+	UDim2.fromOffset(
+		150,
+		22
+	)
+
+phoneLabel.Position =
+	UDim2.fromOffset(
+		245,
+		69
+	)
+
+phoneLabel.BackgroundTransparency =
+	1
+
+phoneLabel.Font =
+	Enum.Font.GothamSemibold
+
+phoneLabel.Text =
+	"PHONE"
+
+phoneLabel.TextColor3 =
+	Color3.fromRGB(
+		235,
+		235,
+		235
+	)
+
+phoneLabel.TextSize =
+	12
+
+phoneLabel.Parent =
+	selectorPanel
+
+local pcButton =
+	Instance.new("TextButton")
+
+pcButton.Size =
+	UDim2.fromOffset(
+		150,
+		115
+	)
+
+pcButton.Position =
+	UDim2.fromOffset(
+		45,
+		94
+	)
+
+pcButton.BackgroundColor3 =
+	Color3.fromRGB(
+		95,
+		95,
+		95
+	)
+
+pcButton.BackgroundTransparency =
+	0.33
+
+pcButton.BorderSizePixel =
+	0
+
+pcButton.AutoButtonColor =
+	false
+
+pcButton.Text =
+	""
+
+pcButton.Parent =
+	selectorPanel
+
+corner(
+	pcButton,
+	7
+)
+
+stroke(
+	pcButton,
+	Color3.fromRGB(
+		205,
+		205,
+		205
+	),
+	0.4
+)
+
+local pcMonitor =
+	Instance.new("Frame")
+
+pcMonitor.Size =
+	UDim2.fromOffset(
+		74,
+		48
+	)
+
+pcMonitor.Position =
+	UDim2.new(
+		0.5,
+		-37,
+		0,
+		20
+	)
+
+pcMonitor.BackgroundColor3 =
+	Color3.fromRGB(
+		60,
+		60,
+		60
+	)
+
+pcMonitor.BackgroundTransparency =
+	0.18
+
+pcMonitor.BorderSizePixel =
+	0
+
+pcMonitor.Parent =
+	pcButton
+
+corner(
+	pcMonitor,
+	3
+)
+
+stroke(
+	pcMonitor,
+	Color3.fromRGB(
+		230,
+		230,
+		230
+	),
+	0.25
+)
+
+local pcScreen =
+	Instance.new("Frame")
+
+pcScreen.Size =
+	UDim2.new(
+		1,
+		-8,
+		1,
+		-8
+	)
+
+pcScreen.Position =
+	UDim2.fromOffset(
+		4,
+		4
+	)
+
+pcScreen.BackgroundColor3 =
+	Color3.fromRGB(
+		35,
+		35,
+		35
+	)
+
+pcScreen.BackgroundTransparency =
+	0.35
+
+pcScreen.BorderSizePixel =
+	0
+
+pcScreen.Parent =
+	pcMonitor
+
+local pcStand =
+	Instance.new("Frame")
+
+pcStand.Size =
+	UDim2.fromOffset(
+		8,
+		14
+	)
+
+pcStand.Position =
+	UDim2.new(
+		0.5,
+		-4,
+		0,
+		68
+	)
+
+pcStand.BackgroundColor3 =
+	Color3.fromRGB(
+		220,
+		220,
+		220
+	)
+
+pcStand.BackgroundTransparency =
+	0.25
+
+pcStand.BorderSizePixel =
+	0
+
+pcStand.Parent =
+	pcButton
+
+local pcBase =
+	Instance.new("Frame")
+
+pcBase.Size =
+	UDim2.fromOffset(
+		34,
+		4
+	)
+
+pcBase.Position =
+	UDim2.new(
+		0.5,
+		-17,
+		0,
+		82
+	)
+
+pcBase.BackgroundColor3 =
+	Color3.fromRGB(
+		220,
+		220,
+		220
+	)
+
+pcBase.BackgroundTransparency =
+	0.25
+
+pcBase.BorderSizePixel =
+	0
+
+pcBase.Parent =
+	pcButton
+
+local pcText =
+	Instance.new("TextLabel")
+
+pcText.Size =
+	UDim2.new(
+		1,
+		-16,
+		0,
+		18
+	)
+
+pcText.Position =
+	UDim2.new(
+		0,
+		8,
+		1,
+		-23
+	)
+
+pcText.BackgroundTransparency =
+	1
+
+pcText.Font =
+	Enum.Font.Gotham
+
+pcText.Text =
+	"normal menu"
+
+pcText.TextColor3 =
+	Color3.fromRGB(
+		210,
+		210,
+		210
+	)
+
+pcText.TextSize =
+	8
+
+pcText.Parent =
+	pcButton
+
+local phoneButton =
+	Instance.new("TextButton")
+
+phoneButton.Size =
+	UDim2.fromOffset(
+		150,
+		115
+	)
+
+phoneButton.Position =
+	UDim2.fromOffset(
+		245,
+		94
+	)
+
+phoneButton.BackgroundColor3 =
+	Color3.fromRGB(
+		95,
+		95,
+		95
+	)
+
+phoneButton.BackgroundTransparency =
+	0.33
+
+phoneButton.BorderSizePixel =
+	0
+
+phoneButton.AutoButtonColor =
+	false
+
+phoneButton.Text =
+	""
+
+phoneButton.Parent =
+	selectorPanel
+
+corner(
+	phoneButton,
+	7
+)
+
+stroke(
+	phoneButton,
+	Color3.fromRGB(
+		205,
+		205,
+		205
+	),
+	0.4
+)
+
+local phoneBody =
+	Instance.new("Frame")
+
+phoneBody.Size =
+	UDim2.fromOffset(
+		42,
+		70
+	)
+
+phoneBody.Position =
+	UDim2.new(
+		0.5,
+		-21,
+		0,
+		13
+	)
+
+phoneBody.BackgroundColor3 =
+	Color3.fromRGB(
+		55,
+		55,
+		55
+	)
+
+phoneBody.BackgroundTransparency =
+	0.18
+
+phoneBody.BorderSizePixel =
+	0
+
+phoneBody.Parent =
+	phoneButton
+
+corner(
+	phoneBody,
+	7
+)
+
+stroke(
+	phoneBody,
+	Color3.fromRGB(
+		230,
+		230,
+		230
+	),
+	0.25
+)
+
+local phoneScreen =
+	Instance.new("Frame")
+
+phoneScreen.Size =
+	UDim2.new(
+		1,
+		-8,
+		1,
+		-14
+	)
+
+phoneScreen.Position =
+	UDim2.fromOffset(
+		4,
+		5
+	)
+
+phoneScreen.BackgroundColor3 =
+	Color3.fromRGB(
+		35,
+		35,
+		35
+	)
+
+phoneScreen.BackgroundTransparency =
+	0.35
+
+phoneScreen.BorderSizePixel =
+	0
+
+phoneScreen.Parent =
+	phoneBody
+
+corner(
+	phoneScreen,
+	4
+)
+
+local phoneDot =
+	Instance.new("Frame")
+
+phoneDot.Size =
+	UDim2.fromOffset(
+		3,
+		3
+	)
+
+phoneDot.Position =
+	UDim2.new(
+		0.5,
+		-1,
+		0,
+		2
+	)
+
+phoneDot.BackgroundColor3 =
+	Color3.fromRGB(
+		220,
+		220,
+		220
+	)
+
+phoneDot.BackgroundTransparency =
+	0.25
+
+phoneDot.BorderSizePixel =
+	0
+
+phoneDot.Parent =
+	phoneBody
+
+corner(
+	phoneDot,
+	3
+)
+
+local phoneText =
+	Instance.new("TextLabel")
+
+phoneText.Size =
+	UDim2.new(
+		1,
+		-16,
+		0,
+		18
+	)
+
+phoneText.Position =
+	UDim2.new(
+		0,
+		8,
+		1,
+		-23
+	)
+
+phoneText.BackgroundTransparency =
+	1
+
+phoneText.Font =
+	Enum.Font.Gotham
+
+phoneText.Text =
+	"phone menu"
+
+phoneText.TextColor3 =
+	Color3.fromRGB(
+		210,
+		210,
+		210
+	)
+
+phoneText.TextSize =
+	8
+
+phoneText.Parent =
+	phoneButton
+
+local chosenDevice
+local deviceEvent =
+	Instance.new("BindableEvent")
+
+local function chooseDevice(mode)
+	if chosenDevice then
+		return
+	end
+
+	chosenDevice =
+		mode
+
+	tween(
+		selectorPanel,
+		0.12,
+		{
+			BackgroundTransparency =
+				0.6
+		}
+	)
+
+	task.wait(
+		0.1
+	)
+
+	deviceEvent:Fire(
+		mode
+	)
+end
+
+pcButton.MouseButton1Click:
+	Connect(function()
+
+		chooseDevice(
+			"PC"
+		)
+	end)
+
+phoneButton.MouseButton1Click:
+	Connect(function()
+
+		chooseDevice(
+			"Phone"
+		)
+	end)
+
+pcButton.MouseEnter:
+	Connect(function()
+
+		tween(
+			pcButton,
+			0.12,
+			{
+				BackgroundTransparency =
+					0.15
+			}
+		)
+	end)
+
+pcButton.MouseLeave:
+	Connect(function()
+
+		tween(
+			pcButton,
+			0.12,
+			{
+				BackgroundTransparency =
+					0.33
+			}
+		)
+	end)
+
+phoneButton.MouseEnter:
+	Connect(function()
+
+		tween(
+			phoneButton,
+			0.12,
+			{
+				BackgroundTransparency =
+					0.15
+			}
+		)
+	end)
+
+phoneButton.MouseLeave:
+	Connect(function()
+
+		tween(
+			phoneButton,
+			0.12,
+			{
+				BackgroundTransparency =
+					0.33
+			}
+		)
+	end)
+
+local deviceMode =
+	deviceEvent.Event:Wait()
+
+deviceEvent:Destroy()
+
+if selector and selector.Parent then
+	selector:Destroy()
+end
+
+local IS_PHONE =
+	deviceMode == "Phone"
+
 local function getCharacter()
 	return player.Character
 end
 
 local function getHumanoid()
-	local character = getCharacter()
+	local character =
+		getCharacter()
 
 	if character then
-		return character:FindFirstChildOfClass("Humanoid")
+		return character:
+			FindFirstChildOfClass(
+				"Humanoid"
+			)
 	end
 end
 
 local function getRoot()
-	local character = getCharacter()
+	local character =
+		getCharacter()
 
 	if character then
-		return character:FindFirstChild("HumanoidRootPart")
+		return character:
+			FindFirstChild(
+				"HumanoidRootPart"
+			)
 	end
 end
 
 local function getPromptPart(prompt)
-	local current = prompt and prompt.Parent
+	local current =
+		prompt and prompt.Parent
 
 	while current do
 		if current:IsA("BasePart") then
 			return current
 		end
 
-		current = current.Parent
+		current =
+			current.Parent
 	end
 end
 
 local function copyText(text)
 	if typeof(setclipboard) == "function" then
-		local success = pcall(function()
-			setclipboard(text)
-		end)
+		local success =
+			pcall(function()
+				setclipboard(text)
+			end)
 
 		if success then
 			return true
@@ -161,9 +1070,10 @@ local function copyText(text)
 	end
 
 	if typeof(toclipboard) == "function" then
-		local success = pcall(function()
-			toclipboard(text)
-		end)
+		local success =
+			pcall(function()
+				toclipboard(text)
+			end)
 
 		if success then
 			return true
@@ -174,14 +1084,21 @@ local function copyText(text)
 end
 
 local function getGameEvents()
-	return ReplicatedStorage:FindFirstChild("GameEvents")
+	return ReplicatedStorage:
+		FindFirstChild(
+			"GameEvents"
+		)
 end
 
 local function getRemote(name)
-	local events = getGameEvents()
+	local events =
+		getGameEvents()
 
 	if events then
-		return events:FindFirstChild(name)
+		return events:
+			FindFirstChild(
+				name
+			)
 	end
 end
 
@@ -192,30 +1109,53 @@ local function promptInfo(prompt)
 		prompt.ObjectText or ""
 	}
 
-	local current = prompt.Parent
-	local depth = 0
+	local current =
+		prompt.Parent
 
-	while current and current ~= workspace and depth < 12 do
-		table.insert(result, current.Name)
+	local depth =
+		0
 
-		current = current.Parent
+	while
+		current
+		and current ~= workspace
+		and depth < 12
+	do
+		table.insert(
+			result,
+			current.Name
+		)
+
+		current =
+			current.Parent
+
 		depth += 1
 	end
 
 	return string.lower(
-		table.concat(result, " ")
+		table.concat(
+			result,
+			" "
+		)
 	)
 end
 
 local function setupPrompt(prompt)
-	if not prompt or not prompt.Parent then
+	if
+		not prompt
+		or not prompt.Parent
+	then
 		return
 	end
 
 	pcall(function()
-		prompt.MaxActivationDistance = 1000000
-		prompt.RequiresLineOfSight = false
-		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance =
+			1000000
+
+		prompt.RequiresLineOfSight =
+			false
+
+		prompt.HoldDuration =
+			0
 	end)
 end
 
@@ -235,9 +1175,12 @@ local function triggerPrompt(prompt)
 	setupPrompt(prompt)
 
 	if typeof(fireproximityprompt) == "function" then
-		local success = pcall(function()
-			fireproximityprompt(prompt)
-		end)
+		local success =
+			pcall(function()
+				fireproximityprompt(
+					prompt
+				)
+			end)
 
 		if success then
 			return true
@@ -245,48 +1188,71 @@ local function triggerPrompt(prompt)
 	end
 
 	return pcall(function()
-		prompt:InputHoldBegin()
+		prompt:
+			InputHoldBegin()
 
-		task.wait(0.015)
+		task.wait(
+			0.015
+		)
 
-		prompt:InputHoldEnd()
+		prompt:
+			InputHoldEnd()
 	end)
 end
 
 local function teleportToPrompt(prompt)
-	local character = getCharacter()
-	local part = getPromptPart(prompt)
+	local character =
+		getCharacter()
 
-	if not character or not part then
+	local part =
+		getPromptPart(
+			prompt
+		)
+
+	if
+		not character
+		or not part
+	then
 		return false
 	end
 
 	return pcall(function()
-		character:PivotTo(
-			part.CFrame
-				* CFrame.new(
-					0,
-					2.6,
-					2
-				)
-		)
+		character:
+			PivotTo(
+				part.CFrame
+					* CFrame.new(
+						0,
+						2.6,
+						2
+					)
+			)
 	end)
 end
 
 local function teleportAndUsePrompt(prompt)
-	if not prompt or not prompt.Parent then
+	if
+		not prompt
+		or not prompt.Parent
+	then
 		return false
 	end
 
-	teleportToPrompt(prompt)
+	teleportToPrompt(
+		prompt
+	)
 
-	task.wait(0.08)
+	task.wait(
+		0.08
+	)
 
-	return triggerPrompt(prompt)
+	return triggerPrompt(
+		prompt
+	)
 end
 
 local function guiVisible(object)
-	local current = object
+	local current =
+		object
 
 	while current do
 		if current:IsA("GuiObject") then
@@ -299,7 +1265,8 @@ local function guiVisible(object)
 			break
 		end
 
-		current = current.Parent
+		current =
+			current.Parent
 	end
 
 	return true
@@ -321,7 +1288,9 @@ local function getGuiText(object)
 		)
 	end
 
-	for _, child in ipairs(object:GetDescendants()) do
+	for _, child in ipairs(
+		object:GetDescendants()
+	) do
 		if
 			child:IsA("TextLabel")
 			or child:IsA("TextButton")
@@ -337,58 +1306,64 @@ local function getGuiText(object)
 	end
 
 	return string.lower(
-		table.concat(result, " ")
+		table.concat(
+			result,
+			" "
+		)
 	)
 end
 
 local function pressGuiObject(object)
-	if not object or not object.Parent then
+	if
+		not object
+		or not object.Parent
+	then
 		return false
 	end
 
 	if object:IsA("GuiButton") then
 		if typeof(firesignal) == "function" then
-			local success = pcall(function()
-				firesignal(object.Activated)
-			end)
+			local success =
+				pcall(function()
+					firesignal(
+						object.Activated
+					)
+				end)
 
 			if success then
 				return true
 			end
 
-			success = pcall(function()
-				firesignal(
-					object.MouseButton1Click
-				)
-			end)
+			success =
+				pcall(function()
+					firesignal(
+						object.MouseButton1Click
+					)
+				end)
 
 			if success then
 				return true
 			end
-
-			pcall(function()
-				firesignal(
-					object.MouseButton1Down
-				)
-
-				firesignal(
-					object.MouseButton1Up
-				)
-			end)
 		end
 	end
 
-	if VirtualInputManager and object:IsA("GuiObject") then
-		local position = object.AbsolutePosition
-		local size = object.AbsoluteSize
+	if
+		VirtualInputManager
+		and object:IsA("GuiObject")
+	then
+		local position =
+			object.AbsolutePosition
+
+		local size =
+			object.AbsoluteSize
 
 		local x =
 			position.X
-			+ (size.X / 2)
+			+ size.X / 2
 
 		local y =
 			position.Y
-			+ (size.Y / 2)
+			+ size.Y / 2
 
 		return pcall(function()
 			VirtualInputManager:
@@ -401,7 +1376,9 @@ local function pressGuiObject(object)
 					0
 				)
 
-			task.wait(0.03)
+			task.wait(
+				0.03
+			)
 
 			VirtualInputManager:
 				SendMouseButtonEvent(
@@ -419,15 +1396,28 @@ local function pressGuiObject(object)
 end
 
 local function pressButton(button)
-	return pressGuiObject(button)
+	return pressGuiObject(
+		button
+	)
 end
 
 local function findGuiButtonContaining(text)
-	text = string.lower(text)
+	text =
+		string.lower(
+			text
+		)
 
-	for _, object in ipairs(playerGui:GetDescendants()) do
-		if object:IsA("GuiButton") and guiVisible(object) then
-			local info = getGuiText(object)
+	for _, object in ipairs(
+		playerGui:GetDescendants()
+	) do
+		if
+			object:IsA("GuiButton")
+			and guiVisible(object)
+		then
+			local info =
+				getGuiText(
+					object
+				)
 
 			if string.find(
 				info,
@@ -443,24 +1433,41 @@ end
 
 local function getOwnFarm()
 	local farms =
-		workspace:FindFirstChild("Farm")
-		or workspace:FindFirstChild("Farms")
+		workspace:
+			FindFirstChild(
+				"Farm"
+			)
+		or workspace:
+			FindFirstChild(
+				"Farms"
+			)
 
 	if not farms then
 		return nil
 	end
 
-	for _, farm in ipairs(farms:GetChildren()) do
+	for _, farm in ipairs(
+		farms:GetChildren()
+	) do
 		local important =
-			farm:FindFirstChild("Important")
+			farm:
+				FindFirstChild(
+					"Important"
+				)
 
 		local data =
 			important
-			and important:FindFirstChild("Data")
+			and important:
+				FindFirstChild(
+					"Data"
+				)
 
 		local owner =
 			data
-			and data:FindFirstChild("Owner")
+			and data:
+				FindFirstChild(
+					"Owner"
+				)
 
 		if owner then
 			local success, value =
@@ -488,21 +1495,27 @@ local function getOwnFarm()
 end
 
 local function getOwnPlants()
-	local farm = getOwnFarm()
+	local farm =
+		getOwnFarm()
 
 	if not farm then
 		return nil
 	end
 
 	local important =
-		farm:FindFirstChild("Important")
+		farm:
+			FindFirstChild(
+				"Important"
+			)
 
 	if not important then
 		return nil
 	end
 
 	return important:
-		FindFirstChild("Plants_Physical")
+		FindFirstChild(
+			"Plants_Physical"
+		)
 end
 
 local seedPrompts = {}
@@ -520,7 +1533,9 @@ local function isSeedPrompt(prompt)
 		)
 
 	local info =
-		promptInfo(prompt)
+		promptInfo(
+			prompt
+		)
 
 	if not string.find(
 		action,
@@ -544,7 +1559,10 @@ local function isSeedPrompt(prompt)
 end
 
 local function addSeedPrompt(prompt)
-	if not prompt or not prompt.Parent then
+	if
+		not prompt
+		or not prompt.Parent
+	then
 		return
 	end
 
@@ -552,18 +1570,26 @@ local function addSeedPrompt(prompt)
 		return
 	end
 
-	seedPrompts[prompt] = true
+	seedPrompts[prompt] =
+		true
 
-	setupPrompt(prompt)
+	setupPrompt(
+		prompt
+	)
 end
 
 local function removeSeedPrompt(prompt)
-	seedPrompts[prompt] = nil
+	seedPrompts[prompt] =
+		nil
 end
 
-for _, object in ipairs(workspace:GetDescendants()) do
+for _, object in ipairs(
+	workspace:GetDescendants()
+) do
 	if object:IsA("ProximityPrompt") then
-		addSeedPrompt(object)
+		addSeedPrompt(
+			object
+		)
 	end
 end
 
@@ -576,26 +1602,43 @@ seedPromptAddedConnection =
 			end
 
 			task.defer(function()
-				addSeedPrompt(object)
+				addSeedPrompt(
+					object
+				)
 			end)
 
-			task.delay(0.1, function()
-				if object.Parent then
-					addSeedPrompt(object)
+			task.delay(
+				0.1,
+				function()
+					if object.Parent then
+						addSeedPrompt(
+							object
+						)
+					end
 				end
-			end)
+			)
 
-			task.delay(0.35, function()
-				if object.Parent then
-					addSeedPrompt(object)
+			task.delay(
+				0.35,
+				function()
+					if object.Parent then
+						addSeedPrompt(
+							object
+						)
+					end
 				end
-			end)
+			)
 
-			task.delay(0.8, function()
-				if object.Parent then
-					addSeedPrompt(object)
+			task.delay(
+				0.8,
+				function()
+					if object.Parent then
+						addSeedPrompt(
+							object
+						)
+					end
 				end
-			end)
+			)
 		end)
 
 seedPromptRemovingConnection =
@@ -603,22 +1646,31 @@ seedPromptRemovingConnection =
 		Connect(function(object)
 
 			if seedPrompts[object] then
-				removeSeedPrompt(object)
+				removeSeedPrompt(
+					object
+				)
 			end
 		end)
 
 local function clickSeedPrompts()
-	for prompt in pairs(seedPrompts) do
+	for prompt in pairs(
+		seedPrompts
+	) do
 		if State.Unloading then
 			break
 		end
 
 		if prompt.Parent then
-			setupPrompt(prompt)
+			setupPrompt(
+				prompt
+			)
 
-			triggerPrompt(prompt)
+			triggerPrompt(
+				prompt
+			)
 		else
-			seedPrompts[prompt] = nil
+			seedPrompts[prompt] =
+				nil
 		end
 	end
 end
@@ -626,9 +1678,13 @@ end
 local function readSeedShopStock()
 	local seedShop
 
-	for _, object in ipairs(playerGui:GetDescendants()) do
+	for _, object in ipairs(
+		playerGui:GetDescendants()
+	) do
 		if object.Name == "Seed_Shop" then
-			seedShop = object
+			seedShop =
+				object
+
 			break
 		end
 	end
@@ -640,16 +1696,23 @@ local function readSeedShopStock()
 	local seeds = {}
 	local used = {}
 
-	for _, frame in ipairs(seedShop:GetDescendants()) do
+	for _, frame in ipairs(
+		seedShop:GetDescendants()
+	) do
 		if frame.Name == "Main_Frame" then
-			local seed = frame.Parent
+			local seed =
+				frame.Parent
 
-			if seed and not used[seed] then
+			if
+				seed
+				and not used[seed]
+			then
 				local stock =
-					frame:FindFirstChild(
-						"Stock_Text",
-						true
-					)
+					frame:
+						FindFirstChild(
+							"Stock_Text",
+							true
+						)
 
 				if
 					stock
@@ -672,13 +1735,17 @@ local function readSeedShopStock()
 						or 0
 
 					if amount > 0 then
-						used[seed] = true
+						used[seed] =
+							true
 
 						table.insert(
 							seeds,
 							{
-								Name = seed.Name,
-								Stock = amount
+								Name =
+									seed.Name,
+
+								Stock =
+									amount
 							}
 						)
 					end
@@ -692,7 +1759,9 @@ end
 
 local function buySeedsRemoteFallback()
 	local remote =
-		getRemote("BuySeedStock")
+		getRemote(
+			"BuySeedStock"
+		)
 
 	if not remote then
 		return false
@@ -705,7 +1774,9 @@ local function buySeedsRemoteFallback()
 		return false
 	end
 
-	for _, seed in ipairs(seeds) do
+	for _, seed in ipairs(
+		seeds
+	) do
 		if State.Unloading then
 			break
 		end
@@ -716,12 +1787,15 @@ local function buySeedsRemoteFallback()
 			end
 
 			pcall(function()
-				remote:FireServer(
-					seed.Name
-				)
+				remote:
+					FireServer(
+						seed.Name
+					)
 			end)
 
-			task.wait(0.015)
+			task.wait(
+				0.015
+			)
 		end
 	end
 
@@ -729,11 +1803,16 @@ local function buySeedsRemoteFallback()
 end
 
 local function buySeedPass()
-	local hadPrompts = false
+	local hadPrompts =
+		false
 
-	for prompt in pairs(seedPrompts) do
+	for prompt in pairs(
+		seedPrompts
+	) do
 		if prompt.Parent then
-			hadPrompts = true
+			hadPrompts =
+				true
+
 			break
 		end
 	end
@@ -747,14 +1826,16 @@ local function buySeedPass()
 	return buySeedsRemoteFallback()
 end
 
-local buyingNow = false
+local buyingNow =
+	false
 
 local function buyAllSeedsNow()
 	if buyingNow then
 		return
 	end
 
-	buyingNow = true
+	buyingNow =
+		true
 
 	for pass = 1, 7 do
 		if State.Unloading then
@@ -764,11 +1845,14 @@ local function buyAllSeedsNow()
 		buySeedPass()
 
 		if pass < 7 then
-			task.wait(0.1)
+			task.wait(
+				0.1
+			)
 		end
 	end
 
-	buyingNow = false
+	buyingNow =
+		false
 end
 
 local watchedPlants
@@ -777,13 +1861,23 @@ local harvestPrompts = {}
 local plantsAddedConnection
 local plantsRemovingConnection
 
-local harvesting = false
-local selling = false
+local harvesting =
+	false
 
-local HARVEST_PLATFORM_OFFSET = 3.25
-local HARVEST_FLY_SPEED = 115
-local HARVEST_MIN_TIME = 0.06
-local HARVEST_MAX_TIME = 1.35
+local selling =
+	false
+
+local HARVEST_PLATFORM_OFFSET =
+	3.25
+
+local HARVEST_FLY_SPEED =
+	115
+
+local HARVEST_MIN_TIME =
+	0.06
+
+local HARVEST_MAX_TIME =
+	1.35
 
 local function isHarvestPrompt(prompt)
 	if not prompt:IsA("ProximityPrompt") then
@@ -801,7 +1895,9 @@ local function isHarvestPrompt(prompt)
 		)
 
 	local info =
-		promptInfo(prompt)
+		promptInfo(
+			prompt
+		)
 
 	if string.find(
 		action,
@@ -874,11 +1970,16 @@ local function addHarvestPrompt(prompt)
 		return
 	end
 
-	if not prompt or not prompt.Parent then
+	if
+		not prompt
+		or not prompt.Parent
+	then
 		return
 	end
 
-	if not prompt:IsDescendantOf(watchedPlants) then
+	if not prompt:IsDescendantOf(
+		watchedPlants
+	) then
 		return
 	end
 
@@ -886,9 +1987,12 @@ local function addHarvestPrompt(prompt)
 		return
 	end
 
-	harvestPrompts[prompt] = true
+	harvestPrompts[prompt] =
+		true
 
-	setupPrompt(prompt)
+	setupPrompt(
+		prompt
+	)
 end
 
 local function clearPlantConnections()
@@ -898,7 +2002,8 @@ local function clearPlantConnections()
 				Disconnect()
 		end)
 
-		plantsAddedConnection = nil
+		plantsAddedConnection =
+			nil
 	end
 
 	if plantsRemovingConnection then
@@ -907,7 +2012,8 @@ local function clearPlantConnections()
 				Disconnect()
 		end)
 
-		plantsRemovingConnection = nil
+		plantsRemovingConnection =
+			nil
 	end
 end
 
@@ -925,17 +2031,21 @@ local function watchOwnPlants()
 		harvestPrompts
 	)
 
-	watchedPlants = plants
+	watchedPlants =
+		plants
 
 	if not watchedPlants then
 		return
 	end
 
 	for _, object in ipairs(
-		watchedPlants:GetDescendants()
+		watchedPlants:
+			GetDescendants()
 	) do
 		if object:IsA("ProximityPrompt") then
-			addHarvestPrompt(object)
+			addHarvestPrompt(
+				object
+			)
 		end
 	end
 
@@ -979,7 +2089,8 @@ local function watchOwnPlants()
 			Connect(function(object)
 
 				if harvestPrompts[object] then
-					harvestPrompts[object] = nil
+					harvestPrompts[object] =
+						nil
 				end
 			end)
 end
@@ -989,7 +2100,10 @@ watchOwnPlants()
 local harvestPlatform
 
 local function createHarvestPlatform()
-	if harvestPlatform and harvestPlatform.Parent then
+	if
+		harvestPlatform
+		and harvestPlatform.Parent
+	then
 		return harvestPlatform
 	end
 
@@ -1006,10 +2120,17 @@ local function createHarvestPlatform()
 			7
 		)
 
-	harvestPlatform.Anchored = true
-	harvestPlatform.CanCollide = true
-	harvestPlatform.CanTouch = false
-	harvestPlatform.CanQuery = false
+	harvestPlatform.Anchored =
+		true
+
+	harvestPlatform.CanCollide =
+		true
+
+	harvestPlatform.CanTouch =
+		false
+
+	harvestPlatform.CanQuery =
+		false
 
 	harvestPlatform.Transparency =
 		0.3
@@ -1020,7 +2141,8 @@ local function createHarvestPlatform()
 	harvestPlatform.Material =
 		Enum.Material.SmoothPlastic
 
-	harvestPlatform.CastShadow = false
+	harvestPlatform.CastShadow =
+		false
 
 	harvestPlatform.Parent =
 		workspace
@@ -1035,7 +2157,8 @@ local function destroyHarvestPlatform()
 				Destroy()
 		end)
 
-		harvestPlatform = nil
+		harvestPlatform =
+			nil
 	end
 end
 
@@ -1085,7 +2208,10 @@ local function updateHarvestPlatform()
 		return
 	end
 
-	if selling or harvesting then
+	if
+		selling
+		or harvesting
+	then
 		return
 	end
 
@@ -1102,24 +2228,30 @@ local function getHarvestList()
 
 	local result = {}
 
-	for prompt in pairs(harvestPrompts) do
+	for prompt in pairs(
+		harvestPrompts
+	) do
 		if
 			prompt
 			and prompt.Parent
 			and prompt.Enabled
 			and watchedPlants
-			and prompt:IsDescendantOf(
-				watchedPlants
-			)
+			and prompt:
+				IsDescendantOf(
+					watchedPlants
+				)
 		then
 			local part =
-				getPromptPart(prompt)
+				getPromptPart(
+					prompt
+				)
 
 			if part then
 				table.insert(
 					result,
 					{
-						Prompt = prompt,
+						Prompt =
+							prompt,
 
 						Distance =
 							(
@@ -1131,7 +2263,8 @@ local function getHarvestList()
 			end
 		else
 			if not prompt.Parent then
-				harvestPrompts[prompt] = nil
+				harvestPrompts[prompt] =
+					nil
 			end
 		end
 	end
@@ -1159,7 +2292,8 @@ local function stopFly()
 				Disconnect()
 		end)
 
-		flyConnection = nil
+		flyConnection =
+			nil
 	end
 
 	if flyVelocity then
@@ -1168,7 +2302,8 @@ local function stopFly()
 				Destroy()
 		end)
 
-		flyVelocity = nil
+		flyVelocity =
+			nil
 	end
 
 	if flyGyro then
@@ -1177,15 +2312,19 @@ local function stopFly()
 				Destroy()
 		end)
 
-		flyGyro = nil
+		flyGyro =
+			nil
 	end
 
 	local humanoid =
 		getHumanoid()
 
 	if humanoid then
-		humanoid.PlatformStand = false
-		humanoid.AutoRotate = true
+		humanoid.PlatformStand =
+			false
+
+		humanoid.AutoRotate =
+			true
 	end
 end
 
@@ -1199,18 +2338,29 @@ local function startFly()
 		return
 	end
 
-	local root = getRoot()
-	local humanoid = getHumanoid()
+	local root =
+		getRoot()
 
-	if not root or not humanoid then
+	local humanoid =
+		getHumanoid()
+
+	if
+		not root
+		or not humanoid
+	then
 		return
 	end
 
-	humanoid.PlatformStand = true
-	humanoid.AutoRotate = false
+	humanoid.PlatformStand =
+		true
+
+	humanoid.AutoRotate =
+		false
 
 	flyVelocity =
-		Instance.new("BodyVelocity")
+		Instance.new(
+			"BodyVelocity"
+		)
 
 	flyVelocity.MaxForce =
 		Vector3.new(
@@ -1219,15 +2369,19 @@ local function startFly()
 			math.huge
 		)
 
-	flyVelocity.P = 30000
+	flyVelocity.P =
+		30000
 
 	flyVelocity.Velocity =
 		Vector3.zero
 
-	flyVelocity.Parent = root
+	flyVelocity.Parent =
+		root
 
 	flyGyro =
-		Instance.new("BodyGyro")
+		Instance.new(
+			"BodyGyro"
+		)
 
 	flyGyro.MaxTorque =
 		Vector3.new(
@@ -1236,10 +2390,14 @@ local function startFly()
 			math.huge
 		)
 
-	flyGyro.P = 30000
-	flyGyro.CFrame = root.CFrame
+	flyGyro.P =
+		30000
 
-	flyGyro.Parent = root
+	flyGyro.CFrame =
+		root.CFrame
+
+	flyGyro.Parent =
+		root
 
 	flyConnection =
 		RunService.RenderStepped:
@@ -1254,7 +2412,10 @@ local function startFly()
 					return
 				end
 
-				if harvesting or selling then
+				if
+					harvesting
+					or selling
+				then
 					if flyVelocity then
 						flyVelocity.Velocity =
 							Vector3.zero
@@ -1263,8 +2424,11 @@ local function startFly()
 					return
 				end
 
-				root = getRoot()
-				humanoid = getHumanoid()
+				root =
+					getRoot()
+
+				humanoid =
+					getHumanoid()
 
 				if
 					not root
@@ -1273,16 +2437,8 @@ local function startFly()
 					return
 				end
 
-				if
-					not flyVelocity
-					or not flyVelocity.Parent
-				then
-					startFly()
-
-					return
-				end
-
-				local vertical = 0
+				local vertical =
+					0
 
 				if
 					UserInputService:
@@ -1325,14 +2481,19 @@ local function startFly()
 						direction.Unit
 				end
 
-				flyVelocity.Velocity =
-					direction
-					* State.FlySpeed
+				if flyVelocity then
+					flyVelocity.Velocity =
+						direction
+						* State.FlySpeed
+				end
 
 				local camera =
 					workspace.CurrentCamera
 
-				if camera then
+				if
+					camera
+					and flyGyro
+				then
 					local look =
 						camera.CFrame.LookVector
 
@@ -1364,12 +2525,17 @@ local function flyPlatformToPrompt(prompt)
 		return false
 	end
 
-	if not prompt or not prompt.Parent then
+	if
+		not prompt
+		or not prompt.Parent
+	then
 		return false
 	end
 
 	local part =
-		getPromptPart(prompt)
+		getPromptPart(
+			prompt
+		)
 
 	local root =
 		getRoot()
@@ -1445,8 +2611,11 @@ local function flyPlatformToPrompt(prompt)
 		humanoid.AutoRotate
 
 	pcall(function()
-		humanoid.PlatformStand = true
-		humanoid.AutoRotate = false
+		humanoid.PlatformStand =
+			true
+
+		humanoid.AutoRotate =
+			false
 
 		root.AssemblyLinearVelocity =
 			Vector3.zero
@@ -1469,12 +2638,14 @@ local function flyPlatformToPrompt(prompt)
 			}
 		)
 
-	local finished = false
+	local finished =
+		false
 
 	local completedConnection =
 		movement.Completed:
 			Connect(function()
-				finished = true
+				finished =
+					true
 			end)
 
 	movement:Play()
@@ -1495,7 +2666,8 @@ local function flyPlatformToPrompt(prompt)
 			or not platform.Parent
 		then
 			pcall(function()
-				movement:Cancel()
+				movement:
+					Cancel()
 			end)
 
 			break
@@ -1517,7 +2689,8 @@ local function flyPlatformToPrompt(prompt)
 				Vector3.zero
 		end)
 
-		RunService.Heartbeat:Wait()
+		RunService.Heartbeat:
+			Wait()
 	end
 
 	if completedConnection then
@@ -1530,13 +2703,11 @@ local function flyPlatformToPrompt(prompt)
 		or State.Unloading
 		or selling
 	then
-		if humanoid and humanoid.Parent then
-			humanoid.PlatformStand =
-				oldPlatformStand
+		humanoid.PlatformStand =
+			oldPlatformStand
 
-			humanoid.AutoRotate =
-				oldAutoRotate
-		end
+		humanoid.AutoRotate =
+			oldAutoRotate
 
 		return false
 	end
@@ -1547,11 +2718,11 @@ local function flyPlatformToPrompt(prompt)
 
 		root.CFrame =
 			platform.CFrame
-				* CFrame.new(
-					0,
-					HARVEST_PLATFORM_OFFSET,
-					0
-				)
+			* CFrame.new(
+				0,
+				HARVEST_PLATFORM_OFFSET,
+				0
+			)
 
 		root.AssemblyLinearVelocity =
 			Vector3.zero
@@ -1560,12 +2731,9 @@ local function flyPlatformToPrompt(prompt)
 			Vector3.zero
 	end)
 
-	task.wait(0.035)
-
-	if humanoid and humanoid.Parent then
-		humanoid.PlatformStand = true
-		humanoid.AutoRotate = false
-	end
+	task.wait(
+		0.035
+	)
 
 	return true,
 		oldPlatformStand,
@@ -1584,14 +2752,18 @@ local function restoreHarvestHumanoid(
 	end
 
 	if State.Fly then
-		humanoid.PlatformStand = true
-		humanoid.AutoRotate = false
+		humanoid.PlatformStand =
+			true
+
+		humanoid.AutoRotate =
+			false
 	else
 		humanoid.PlatformStand =
 			oldPlatformStand or false
 
 		if oldAutoRotate == nil then
-			humanoid.AutoRotate = true
+			humanoid.AutoRotate =
+				true
 		else
 			humanoid.AutoRotate =
 				oldAutoRotate
@@ -1612,7 +2784,8 @@ local function harvestOwnCrops()
 		return
 	end
 
-	harvesting = true
+	harvesting =
+		true
 
 	local resumeFly =
 		State.Fly
@@ -1636,7 +2809,9 @@ local function harvestOwnCrops()
 			local list =
 				getHarvestList()
 
-			for _, data in ipairs(list) do
+			for _, data in ipairs(
+				list
+			) do
 				if
 					not State.AutoHarvest
 					or State.Unloading
@@ -1653,9 +2828,10 @@ local function harvestOwnCrops()
 					and prompt.Parent
 					and prompt.Enabled
 					and watchedPlants
-					and prompt:IsDescendantOf(
-						watchedPlants
-					)
+					and prompt:
+						IsDescendantOf(
+							watchedPlants
+						)
 				then
 					local moved,
 						oldPlatformStand,
@@ -1669,20 +2845,30 @@ local function harvestOwnCrops()
 						and prompt.Parent
 						and prompt.Enabled
 					then
-						setupPrompt(prompt)
+						setupPrompt(
+							prompt
+						)
 
-						triggerPrompt(prompt)
+						triggerPrompt(
+							prompt
+						)
 
-						task.wait(0.045)
+						task.wait(
+							0.045
+						)
 
 						if
 							prompt.Parent
 							and prompt.Enabled
 						then
-							triggerPrompt(prompt)
+							triggerPrompt(
+								prompt
+							)
 						end
 
-						task.wait(0.06)
+						task.wait(
+							0.06
+						)
 					end
 
 					restoreHarvestHumanoid(
@@ -1693,7 +2879,8 @@ local function harvestOwnCrops()
 			end
 		end)
 
-	harvesting = false
+	harvesting =
+		false
 
 	if
 		resumeFly
@@ -1721,10 +2908,6 @@ local function harvestOwnCrops()
 	return success
 end
 
-local function spamOwnHarvest()
-	return harvestOwnCrops()
-end
-
 local sellerPrompt
 
 local function findSellerPrompt()
@@ -1743,21 +2926,22 @@ local function findSellerPrompt()
 		"Sell"
 	}
 
-	for _, name in ipairs(names) do
+	for _, name in ipairs(
+		names
+	) do
 		local npc =
-			workspace:FindFirstChild(
-				name,
-				true
-			)
+			workspace:
+				FindFirstChild(
+					name,
+					true
+				)
 
 		if npc then
 			for _, object in ipairs(
 				npc:GetDescendants()
 			) do
 				if
-					object:IsA(
-						"ProximityPrompt"
-					)
+					object:IsA("ProximityPrompt")
 					and object.Enabled
 				then
 					sellerPrompt =
@@ -1774,7 +2958,8 @@ local function findSellerPrompt()
 	end
 
 	local bestPrompt
-	local bestScore = 0
+	local bestScore =
+		0
 
 	for _, object in ipairs(
 		workspace:GetDescendants()
@@ -1784,9 +2969,12 @@ local function findSellerPrompt()
 			and object.Enabled
 		then
 			local info =
-				promptInfo(object)
+				promptInfo(
+					object
+				)
 
-			local score = 0
+			local score =
+				0
 
 			if string.find(
 				info,
@@ -1825,8 +3013,11 @@ local function findSellerPrompt()
 			end
 
 			if score > bestScore then
-				bestScore = score
-				bestPrompt = object
+				bestScore =
+					score
+
+				bestPrompt =
+					object
 			end
 		end
 	end
@@ -1911,7 +3102,8 @@ local function findButtonAroundTextObject(object)
 	local current =
 		object.Parent
 
-	local depth = 0
+	local depth =
+		0
 
 	while
 		current
@@ -1922,7 +3114,8 @@ local function findButtonAroundTextObject(object)
 			return current
 		end
 
-		local buttons = {}
+		local buttons =
+			{}
 
 		for _, child in ipairs(
 			current:GetDescendants()
@@ -1991,7 +3184,9 @@ local function findSellInventoryTarget()
 		then
 			if
 				textMatchesSell(
-					getGuiText(object)
+					getGuiText(
+						object
+					)
 				)
 			then
 				return object
@@ -2021,13 +3216,17 @@ local function clickSellDialogue(timeout)
 				)
 
 			if success then
-				task.wait(0.15)
+				task.wait(
+					0.15
+				)
 
 				return true
 			end
 		end
 
-		task.wait(0.035)
+		task.wait(
+			0.035
+		)
 	end
 
 	return false
@@ -2061,18 +3260,23 @@ local function returnToPosition(returnCFrame)
 		root.AssemblyAngularVelocity =
 			Vector3.zero
 
-		character:PivotTo(
-			returnCFrame
-		)
+		character:
+			PivotTo(
+				returnCFrame
+			)
 	end)
 end
 
 local function sellInventory()
-	if selling or State.Unloading then
+	if
+		selling
+		or State.Unloading
+	then
 		return false
 	end
 
-	selling = true
+	selling =
+		true
 
 	local waitStart =
 		os.clock()
@@ -2081,11 +3285,10 @@ local function sellInventory()
 		harvesting
 		and os.clock() - waitStart < 2
 	do
-		task.wait(0.03)
+		task.wait(
+			0.03
+		)
 	end
-
-	local character =
-		getCharacter()
 
 	local root =
 		getRoot()
@@ -2101,7 +3304,8 @@ local function sellInventory()
 		stopFly()
 	end
 
-	local sold = false
+	local sold =
+		false
 
 	local ok =
 		pcall(function()
@@ -2109,14 +3313,19 @@ local function sellInventory()
 			local prompt =
 				findSellerPrompt()
 
-			if prompt and prompt.Parent then
+			if
+				prompt
+				and prompt.Parent
+			then
 				teleportToPrompt(
 					prompt
 				)
 
-				task.wait(0.14)
+				task.wait(
+					0.14
+				)
 
-				for attempt = 1, 5 do
+				for _ = 1, 5 do
 					if State.Unloading then
 						break
 					end
@@ -2145,14 +3354,19 @@ local function sellInventory()
 						)
 
 					if clicked then
-						sold = true
+						sold =
+							true
 
-						task.wait(0.2)
+						task.wait(
+							0.2
+						)
 
 						break
 					end
 
-					task.wait(0.08)
+					task.wait(
+						0.08
+					)
 				end
 			end
 
@@ -2161,14 +3375,15 @@ local function sellInventory()
 					findSellInventoryTarget()
 
 				if target then
-					if
-						pressGuiObject(
-							target
-						)
-					then
-						sold = true
+					if pressGuiObject(
+						target
+					) then
+						sold =
+							true
 
-						task.wait(0.15)
+						task.wait(
+							0.15
+						)
 					end
 				end
 			end
@@ -2187,23 +3402,29 @@ local function sellInventory()
 						end)
 
 					if remoteSuccess then
-						sold = true
+						sold =
+							true
 
-						task.wait(0.12)
+						task.wait(
+							0.12
+						)
 					end
 				end
 			end
 		end)
 
 	if returnCFrame then
-		task.wait(0.08)
+		task.wait(
+			0.08
+		)
 
 		returnToPosition(
 			returnCFrame
 		)
 	end
 
-	selling = false
+	selling =
+		false
 
 	if
 		resumeFly
@@ -2277,7 +3498,9 @@ local function findShopPrompt(kind)
 		return nil
 	end
 
-	for _, words in ipairs(searches) do
+	for _, words in ipairs(
+		searches
+	) do
 		for _, prompt in ipairs(
 			workspace:GetDescendants()
 		) do
@@ -2286,18 +3509,26 @@ local function findShopPrompt(kind)
 				and prompt.Enabled
 			then
 				local info =
-					promptInfo(prompt)
+					promptInfo(
+						prompt
+					)
 
-				local matches = true
+				local matches =
+					true
 
-				for _, word in ipairs(words) do
+				for _, word in ipairs(
+					words
+				) do
 					if not string.find(
 						info,
-						string.lower(word),
+						string.lower(
+							word
+						),
 						1,
 						true
 					) then
-						matches = false
+						matches =
+							false
 
 						break
 					end
@@ -2319,19 +3550,29 @@ local function openShop(kind)
 	end
 
 	local prompt =
-		findShopPrompt(kind)
+		findShopPrompt(
+			kind
+		)
 
 	if not prompt then
 		return false
 	end
 
-	teleportToPrompt(prompt)
+	teleportToPrompt(
+		prompt
+	)
 
-	task.wait(0.1)
+	task.wait(
+		0.1
+	)
 
-	setupPrompt(prompt)
+	setupPrompt(
+		prompt
+	)
 
-	return triggerPrompt(prompt)
+	return triggerPrompt(
+		prompt
+	)
 end
 
 local function applyWalkSpeed()
@@ -2346,18 +3587,23 @@ local function applyWalkSpeed()
 		humanoid.WalkSpeed =
 			State.WalkSpeedValue
 	else
-		humanoid.WalkSpeed = 16
+		humanoid.WalkSpeed =
+			16
 	end
 end
 
 local function findOpenEmotesButton()
-	for _, object in ipairs(playerGui:GetDescendants()) do
+	for _, object in ipairs(
+		playerGui:GetDescendants()
+	) do
 		if
 			object:IsA("GuiButton")
 			and guiVisible(object)
 		then
 			local info =
-				getGuiText(object)
+				getGuiText(
+					object
+				)
 
 			if string.find(
 				info,
@@ -2378,7 +3624,9 @@ local function openEmotes()
 		findOpenEmotesButton()
 
 	if button then
-		return pressButton(button)
+		return pressButton(
+			button
+		)
 	end
 
 	return false
@@ -2389,7 +3637,9 @@ local function findEmotePanel()
 	local bestCount =
 		math.huge
 
-	for _, object in ipairs(playerGui:GetDescendants()) do
+	for _, object in ipairs(
+		playerGui:GetDescendants()
+	) do
 		if
 			(
 				object:IsA("TextLabel")
@@ -2411,14 +3661,16 @@ local function findEmotePanel()
 				local current =
 					object.Parent
 
-				local depth = 0
+				local depth =
+					0
 
 				while
 					current
 					and current ~= playerGui
 					and depth < 6
 				do
-					local count = 0
+					local count =
+						0
 
 					for _, item in ipairs(
 						current:GetDescendants()
@@ -2435,8 +3687,11 @@ local function findEmotePanel()
 						count >= 4
 						and count < bestCount
 					then
-						best = current
-						bestCount = count
+						best =
+							current
+
+						bestCount =
+							count
 					end
 
 					if current:IsA("ScreenGui") then
@@ -2465,13 +3720,17 @@ local function getEmoteButtons()
 
 	local buttons = {}
 
-	for _, object in ipairs(panel:GetDescendants()) do
+	for _, object in ipairs(
+		panel:GetDescendants()
+	) do
 		if
 			object:IsA("GuiButton")
 			and guiVisible(object)
 		then
 			local info =
-				getGuiText(object)
+				getGuiText(
+					object
+				)
 
 			if
 				not string.find(
@@ -2506,7 +3765,10 @@ local function getEmoteButtons()
 					end
 				end
 
-				if image and image ~= "" then
+				if
+					image
+					and image ~= ""
+				then
 					table.insert(
 						buttons,
 						object
@@ -2525,7 +3787,11 @@ local function getEmoteButtons()
 			local by =
 				b.AbsolutePosition.Y
 
-			if math.abs(ay - by) > 5 then
+			if
+				math.abs(
+					ay - by
+				) > 5
+			then
 				return ay < by
 			end
 
@@ -2538,7 +3804,8 @@ local function getEmoteButtons()
 	return buttons
 end
 
-local emoteIndex = 0
+local emoteIndex =
+	0
 
 local function sendNextEmote()
 	local buttons =
@@ -2547,7 +3814,9 @@ local function sendNextEmote()
 	if #buttons == 0 then
 		openEmotes()
 
-		task.wait(0.15)
+		task.wait(
+			0.15
+		)
 
 		buttons =
 			getEmoteButtons()
@@ -2560,7 +3829,8 @@ local function sendNextEmote()
 	emoteIndex += 1
 
 	if emoteIndex > #buttons then
-		emoteIndex = 1
+		emoteIndex =
+			1
 	end
 
 	return pressButton(
@@ -2591,11 +3861,12 @@ idleConnection =
 							0,
 							0
 						),
-
 						workspace.CurrentCamera.CFrame
 					)
 
-				task.wait(0.1)
+				task.wait(
+					0.1
+				)
 
 				VirtualUser:
 					Button2Up(
@@ -2603,7 +3874,6 @@ idleConnection =
 							0,
 							0
 						),
-
 						workspace.CurrentCamera.CFrame
 					)
 			end)
@@ -2630,9 +3900,10 @@ end
 
 local function leave()
 	pcall(function()
-		player:Kick(
-			"Left the server."
-		)
+		player:
+			Kick(
+				"Left the server."
+			)
 	end)
 end
 
@@ -2641,32 +3912,28 @@ local function resetCharacter()
 		getHumanoid()
 
 	if humanoid then
-		humanoid.Health = 0
+		humanoid.Health =
+			0
 	end
 end
 
 local screen =
 	Instance.new("ScreenGui")
 
-screen.Name = "THHGrowers"
-screen.ResetOnSpawn = false
-screen.IgnoreGuiInset = true
-screen.DisplayOrder = 999999
+screen.Name =
+	"THHGrowers"
+
+screen.ResetOnSpawn =
+	false
+
+screen.IgnoreGuiInset =
+	true
+
+screen.DisplayOrder =
+	999999
 
 screen.ZIndexBehavior =
 	Enum.ZIndexBehavior.Sibling
-
-local guiParent =
-	playerGui
-
-if typeof(gethui) == "function" then
-	local success, result =
-		pcall(gethui)
-
-	if success and result then
-		guiParent = result
-	end
-end
 
 local old =
 	guiParent:
@@ -2691,6 +3958,74 @@ end
 screen.Parent =
 	guiParent
 
+local mobileOpenButton =
+	Instance.new("ImageButton")
+
+mobileOpenButton.Name =
+	"PhoneMenuButton"
+
+mobileOpenButton.AnchorPoint =
+	Vector2.new(
+		1,
+		1
+	)
+
+mobileOpenButton.Size =
+	UDim2.fromOffset(
+		62,
+		62
+	)
+
+mobileOpenButton.Position =
+	UDim2.new(
+		1,
+		-16,
+		1,
+		-16
+	)
+
+mobileOpenButton.BackgroundColor3 =
+	Theme.Card
+
+mobileOpenButton.BorderSizePixel =
+	0
+
+mobileOpenButton.AutoButtonColor =
+	false
+
+mobileOpenButton.Image =
+	"rbxthumb://type=GameIcon&id="
+	.. tostring(game.GameId)
+	.. "&w=150&h=150"
+
+mobileOpenButton.ScaleType =
+	Enum.ScaleType.Crop
+
+mobileOpenButton.Visible =
+	false
+
+mobileOpenButton.ZIndex =
+	500
+
+mobileOpenButton.Parent =
+	screen
+
+corner(
+	mobileOpenButton,
+	18
+)
+
+stroke(
+	mobileOpenButton,
+	Theme.Accent
+)
+
+local mobileButtonScale =
+	Instance.new("UIScale")
+
+mobileButtonScale.Parent =
+	mobileOpenButton
+
 local notificationHolder =
 	Instance.new("Frame")
 
@@ -2708,8 +4043,11 @@ notificationHolder.Position =
 		20
 	)
 
-notificationHolder.BackgroundTransparency = 1
-notificationHolder.Parent = screen
+notificationHolder.BackgroundTransparency =
+	1
+
+notificationHolder.Parent =
+	screen
 
 local notificationLayout =
 	Instance.new("UIListLayout")
@@ -2726,7 +4064,7 @@ notificationLayout.HorizontalAlignment =
 notificationLayout.Parent =
 	notificationHolder
 
-local function notify(title, text)
+local function notify(titleText, text)
 	if
 		not screen
 		or not screen.Parent
@@ -2746,7 +4084,8 @@ local function notify(title, text)
 	card.BackgroundColor3 =
 		Theme.Card
 
-	card.BorderSizePixel = 0
+	card.BorderSizePixel =
+		0
 
 	card.Parent =
 		notificationHolder
@@ -2756,7 +4095,9 @@ local function notify(title, text)
 		8
 	)
 
-	stroke(card)
+	stroke(
+		card
+	)
 
 	local accent =
 		Instance.new("Frame")
@@ -2776,8 +4117,11 @@ local function notify(title, text)
 	accent.BackgroundColor3 =
 		Theme.Accent
 
-	accent.BorderSizePixel = 0
-	accent.Parent = card
+	accent.BorderSizePixel =
+		0
+
+	accent.Parent =
+		card
 
 	corner(
 		accent,
@@ -2801,22 +4145,26 @@ local function notify(title, text)
 			10
 		)
 
-	heading.BackgroundTransparency = 1
+	heading.BackgroundTransparency =
+		1
 
 	heading.Font =
 		Enum.Font.GothamSemibold
 
-	heading.Text = title
+	heading.Text =
+		titleText
 
 	heading.TextColor3 =
 		Theme.Text
 
-	heading.TextSize = 11
+	heading.TextSize =
+		11
 
 	heading.TextXAlignment =
 		Enum.TextXAlignment.Left
 
-	heading.Parent = card
+	heading.Parent =
+		card
 
 	local body =
 		Instance.new("TextLabel")
@@ -2835,17 +4183,20 @@ local function notify(title, text)
 			31
 		)
 
-	body.BackgroundTransparency = 1
+	body.BackgroundTransparency =
+		1
 
 	body.Font =
 		Enum.Font.Gotham
 
-	body.Text = text
+	body.Text =
+		text
 
 	body.TextColor3 =
 		Theme.SubText
 
-	body.TextSize = 9
+	body.TextSize =
+		9
 
 	body.TextXAlignment =
 		Enum.TextXAlignment.Left
@@ -2853,7 +4204,8 @@ local function notify(title, text)
 	body.TextTruncate =
 		Enum.TextTruncate.AtEnd
 
-	body.Parent = card
+	body.Parent =
+		card
 
 	card.Position =
 		UDim2.fromOffset(
@@ -2861,7 +4213,8 @@ local function notify(title, text)
 			0
 		)
 
-	card.BackgroundTransparency = 1
+	card.BackgroundTransparency =
+		1
 
 	tween(
 		card,
@@ -2873,14 +4226,14 @@ local function notify(title, text)
 					0
 				),
 
-			BackgroundTransparency = 0
+			BackgroundTransparency =
+				0
 		}
 	)
 
 	task.delay(
 		3,
 		function()
-
 			if not card.Parent then
 				return
 			end
@@ -2895,21 +4248,27 @@ local function notify(title, text)
 							0
 						),
 
-					BackgroundTransparency = 1
+					BackgroundTransparency =
+						1
 				}
 			)
 
-			task.wait(0.2)
+			task.wait(
+				0.2
+			)
 
 			if card.Parent then
-				card:Destroy()
+				card:
+					Destroy()
 			end
 		end
 	)
 end
 
 local function makeDraggable(frame, handle)
-	local dragging = false
+	local dragging =
+		false
+
 	local startMouse
 	local startPosition
 
@@ -2922,7 +4281,8 @@ local function makeDraggable(frame, handle)
 				or input.UserInputType
 					== Enum.UserInputType.Touch
 			then
-				dragging = true
+				dragging =
+					true
 
 				startMouse =
 					input.Position
@@ -2954,7 +4314,6 @@ local function makeDraggable(frame, handle)
 						startPosition.X.Scale,
 						startPosition.X.Offset
 							+ delta.X,
-
 						startPosition.Y.Scale,
 						startPosition.Y.Offset
 							+ delta.Y
@@ -2971,13 +4330,20 @@ local function makeDraggable(frame, handle)
 				or input.UserInputType
 					== Enum.UserInputType.Touch
 			then
-				dragging = false
+				dragging =
+					false
 			end
 		end)
 end
 
 local main =
 	Instance.new("Frame")
+
+main.AnchorPoint =
+	Vector2.new(
+		0.5,
+		0.5
+	)
 
 main.Size =
 	UDim2.fromOffset(
@@ -2986,28 +4352,132 @@ main.Size =
 	)
 
 main.Position =
-	UDim2.new(
+	UDim2.fromScale(
 		0.5,
-		-350,
-		0.5,
-		-227
+		0.5
 	)
 
 main.BackgroundColor3 =
 	Theme.Background
 
-main.BorderSizePixel = 0
-main.Visible = true
-main.ClipsDescendants = true
+main.BorderSizePixel =
+	0
 
-main.Parent = screen
+main.Visible =
+	true
+
+main.ClipsDescendants =
+	true
+
+main.Parent =
+	screen
 
 corner(
 	main,
 	11
 )
 
-stroke(main)
+stroke(
+	main
+)
+
+local mainScale =
+	Instance.new("UIScale")
+
+mainScale.Parent =
+	main
+
+local viewportConnection
+
+local function updatePhoneScaling()
+	if not IS_PHONE then
+		mainScale.Scale =
+			1
+
+		mobileButtonScale.Scale =
+			1
+
+		return
+	end
+
+	local camera =
+		workspace.CurrentCamera
+
+	if not camera then
+		return
+	end
+
+	local viewport =
+		camera.ViewportSize
+
+	local scale =
+		math.min(
+			(viewport.X - 24) / 700,
+			(viewport.Y - 24) / 455
+		)
+
+	mainScale.Scale =
+		math.clamp(
+			scale,
+			0.55,
+			1
+		)
+
+	local buttonScale =
+		math.min(
+			viewport.X / 900,
+			viewport.Y / 500
+		)
+
+	mobileButtonScale.Scale =
+		math.clamp(
+			buttonScale,
+			0.82,
+			1
+		)
+end
+
+updatePhoneScaling()
+
+if workspace.CurrentCamera then
+	viewportConnection =
+		workspace.CurrentCamera:
+			GetPropertyChangedSignal(
+				"ViewportSize"
+			):
+			Connect(
+				updatePhoneScaling
+			)
+end
+
+local function syncPhoneButton()
+	if not IS_PHONE then
+		mobileOpenButton.Visible =
+			false
+
+		return
+	end
+
+	mobileOpenButton.Visible =
+		not main.Visible
+		and not State.Unloading
+end
+
+mobileOpenButton.MouseButton1Click:
+	Connect(function()
+
+		if
+			not IS_PHONE
+			or State.Unloading
+		then
+			return
+		end
+
+		main.Visible =
+			true
+
+		syncPhoneButton()
+	end)
 
 local sidebar =
 	Instance.new("Frame")
@@ -3021,8 +4491,11 @@ sidebar.Size =
 sidebar.BackgroundColor3 =
 	Theme.Sidebar
 
-sidebar.BorderSizePixel = 0
-sidebar.Parent = main
+sidebar.BorderSizePixel =
+	0
+
+sidebar.Parent =
+	main
 
 local sidebarLine =
 	Instance.new("Frame")
@@ -3046,8 +4519,11 @@ sidebarLine.Position =
 sidebarLine.BackgroundColor3 =
 	Theme.Stroke
 
-sidebarLine.BorderSizePixel = 0
-sidebarLine.Parent = sidebar
+sidebarLine.BorderSizePixel =
+	0
+
+sidebarLine.Parent =
+	sidebar
 
 local brandIcon =
 	Instance.new("ImageLabel")
@@ -3067,7 +4543,8 @@ brandIcon.Position =
 brandIcon.BackgroundColor3 =
 	Theme.AccentDark
 
-brandIcon.BorderSizePixel = 0
+brandIcon.BorderSizePixel =
+	0
 
 brandIcon.Image =
 	"rbxthumb://type=GameIcon&id="
@@ -3102,22 +4579,26 @@ brand.Position =
 		16
 	)
 
-brand.BackgroundTransparency = 1
+brand.BackgroundTransparency =
+	1
 
 brand.Font =
 	Enum.Font.GothamBold
 
-brand.Text = "THH"
+brand.Text =
+	"THH"
 
 brand.TextColor3 =
 	Theme.Text
 
-brand.TextSize = 13
+brand.TextSize =
+	13
 
 brand.TextXAlignment =
 	Enum.TextXAlignment.Left
 
-brand.Parent = sidebar
+brand.Parent =
+	sidebar
 
 local brandSub =
 	Instance.new("TextLabel")
@@ -3136,23 +4617,28 @@ brandSub.Position =
 		34
 	)
 
-brandSub.BackgroundTransparency = 1
+brandSub.BackgroundTransparency =
+	1
 
 brandSub.Font =
 	Enum.Font.Gotham
 
 brandSub.Text =
-	"Growers"
+	IS_PHONE
+		and "Growers • Phone"
+		or "Growers"
 
 brandSub.TextColor3 =
 	Theme.SubText
 
-brandSub.TextSize = 8
+brandSub.TextSize =
+	8
 
 brandSub.TextXAlignment =
 	Enum.TextXAlignment.Left
 
-brandSub.Parent = sidebar
+brandSub.Parent =
+	sidebar
 
 local profile =
 	Instance.new("Frame")
@@ -3176,15 +4662,20 @@ profile.Position =
 profile.BackgroundColor3 =
 	Theme.Card
 
-profile.BorderSizePixel = 0
-profile.Parent = sidebar
+profile.BorderSizePixel =
+	0
+
+profile.Parent =
+	sidebar
 
 corner(
 	profile,
 	8
 )
 
-stroke(profile)
+stroke(
+	profile
+)
 
 local avatar =
 	Instance.new("ImageLabel")
@@ -3204,8 +4695,11 @@ avatar.Position =
 avatar.BackgroundColor3 =
 	Theme.Off
 
-avatar.BorderSizePixel = 0
-avatar.Parent = profile
+avatar.BorderSizePixel =
+	0
+
+avatar.Parent =
+	profile
 
 corner(
 	avatar,
@@ -3219,15 +4713,14 @@ task.spawn(function()
 			return Players:
 				GetUserThumbnailAsync(
 					player.UserId,
-
 					Enum.ThumbnailType.HeadShot,
-
 					Enum.ThumbnailSize.Size150x150
 				)
 		end)
 
 	if success then
-		avatar.Image = image
+		avatar.Image =
+			image
 	end
 end)
 
@@ -3248,7 +4741,8 @@ displayName.Position =
 		13
 	)
 
-displayName.BackgroundTransparency = 1
+displayName.BackgroundTransparency =
+	1
 
 displayName.Font =
 	Enum.Font.GothamSemibold
@@ -3259,7 +4753,8 @@ displayName.Text =
 displayName.TextColor3 =
 	Theme.Text
 
-displayName.TextSize = 10
+displayName.TextSize =
+	10
 
 displayName.TextXAlignment =
 	Enum.TextXAlignment.Left
@@ -3267,7 +4762,8 @@ displayName.TextXAlignment =
 displayName.TextTruncate =
 	Enum.TextTruncate.AtEnd
 
-displayName.Parent = profile
+displayName.Parent =
+	profile
 
 local username =
 	Instance.new("TextLabel")
@@ -3286,7 +4782,8 @@ username.Position =
 		31
 	)
 
-username.BackgroundTransparency = 1
+username.BackgroundTransparency =
+	1
 
 username.Font =
 	Enum.Font.Gotham
@@ -3297,7 +4794,8 @@ username.Text =
 username.TextColor3 =
 	Theme.SubText
 
-username.TextSize = 8
+username.TextSize =
+	8
 
 username.TextXAlignment =
 	Enum.TextXAlignment.Left
@@ -3305,7 +4803,8 @@ username.TextXAlignment =
 username.TextTruncate =
 	Enum.TextTruncate.AtEnd
 
-username.Parent = profile
+username.Parent =
+	profile
 
 local navigation =
 	Instance.new("Frame")
@@ -3315,7 +4814,7 @@ navigation.Size =
 		1,
 		-20,
 		0,
-		230
+		280
 	)
 
 navigation.Position =
@@ -3324,8 +4823,11 @@ navigation.Position =
 		75
 	)
 
-navigation.BackgroundTransparency = 1
-navigation.Parent = sidebar
+navigation.BackgroundTransparency =
+	1
+
+navigation.Parent =
+	sidebar
 
 local navigationLayout =
 	Instance.new("UIListLayout")
@@ -3333,7 +4835,7 @@ local navigationLayout =
 navigationLayout.Padding =
 	UDim.new(
 		0,
-		6
+		IS_PHONE and 7 or 6
 	)
 
 navigationLayout.Parent =
@@ -3356,8 +4858,11 @@ header.Position =
 		0
 	)
 
-header.BackgroundTransparency = 1
-header.Parent = main
+header.BackgroundTransparency =
+	1
+
+header.Parent =
+	main
 
 makeDraggable(
 	main,
@@ -3381,7 +4886,8 @@ pageTitle.Position =
 		14
 	)
 
-pageTitle.BackgroundTransparency = 1
+pageTitle.BackgroundTransparency =
+	1
 
 pageTitle.Font =
 	Enum.Font.GothamBold
@@ -3392,12 +4898,14 @@ pageTitle.Text =
 pageTitle.TextColor3 =
 	Theme.Text
 
-pageTitle.TextSize = 15
+pageTitle.TextSize =
+	IS_PHONE and 16 or 15
 
 pageTitle.TextXAlignment =
 	Enum.TextXAlignment.Left
 
-pageTitle.Parent = header
+pageTitle.Parent =
+	header
 
 local pageSub =
 	Instance.new("TextLabel")
@@ -3416,7 +4924,8 @@ pageSub.Position =
 		37
 	)
 
-pageSub.BackgroundTransparency = 1
+pageSub.BackgroundTransparency =
+	1
 
 pageSub.Font =
 	Enum.Font.Gotham
@@ -3427,45 +4936,55 @@ pageSub.Text =
 pageSub.TextColor3 =
 	Theme.SubText
 
-pageSub.TextSize = 9
+pageSub.TextSize =
+	IS_PHONE and 10 or 9
 
 pageSub.TextXAlignment =
 	Enum.TextXAlignment.Left
 
-pageSub.Parent = header
+pageSub.Parent =
+	header
+
+local topButtonSize =
+	IS_PHONE and 34 or 30
 
 local minimize =
 	Instance.new("TextButton")
 
 minimize.Size =
 	UDim2.fromOffset(
-		30,
-		30
+		topButtonSize,
+		topButtonSize
 	)
 
 minimize.Position =
 	UDim2.new(
 		1,
-		-75,
+		IS_PHONE and -83 or -75,
 		0,
-		17
+		IS_PHONE and 15 or 17
 	)
 
 minimize.BackgroundColor3 =
 	Theme.Card
 
-minimize.BorderSizePixel = 0
-minimize.AutoButtonColor = false
+minimize.BorderSizePixel =
+	0
+
+minimize.AutoButtonColor =
+	false
 
 minimize.Font =
 	Enum.Font.GothamBold
 
-minimize.Text = "—"
+minimize.Text =
+	"—"
 
 minimize.TextColor3 =
 	Theme.SubText
 
-minimize.TextSize = 11
+minimize.TextSize =
+	12
 
 minimize.Parent =
 	header
@@ -3475,40 +4994,47 @@ corner(
 	7
 )
 
-stroke(minimize)
+stroke(
+	minimize
+)
 
 local close =
 	Instance.new("TextButton")
 
 close.Size =
 	UDim2.fromOffset(
-		30,
-		30
+		topButtonSize,
+		topButtonSize
 	)
 
 close.Position =
 	UDim2.new(
 		1,
-		-38,
+		IS_PHONE and -42 or -38,
 		0,
-		17
+		IS_PHONE and 15 or 17
 	)
 
 close.BackgroundColor3 =
 	Theme.Card
 
-close.BorderSizePixel = 0
-close.AutoButtonColor = false
+close.BorderSizePixel =
+	0
+
+close.AutoButtonColor =
+	false
 
 close.Font =
 	Enum.Font.GothamBold
 
-close.Text = "×"
+close.Text =
+	"×"
 
 close.TextColor3 =
 	Theme.SubText
 
-close.TextSize = 14
+close.TextSize =
+	IS_PHONE and 16 or 14
 
 close.Parent =
 	header
@@ -3518,7 +5044,9 @@ corner(
 	7
 )
 
-stroke(close)
+stroke(
+	close
+)
 
 local content =
 	Instance.new("Frame")
@@ -3537,8 +5065,11 @@ content.Position =
 		70
 	)
 
-content.BackgroundTransparency = 1
-content.Parent = main
+content.BackgroundTransparency =
+	1
+
+content.Parent =
+	main
 
 local pages = {}
 local navButtons = {}
@@ -3547,7 +5078,8 @@ local function createPage(name)
 	local page =
 		Instance.new("ScrollingFrame")
 
-	page.Name = name
+	page.Name =
+		name
 
 	page.Size =
 		UDim2.fromScale(
@@ -3555,8 +5087,11 @@ local function createPage(name)
 			1
 		)
 
-	page.BackgroundTransparency = 1
-	page.BorderSizePixel = 0
+	page.BackgroundTransparency =
+		1
+
+	page.BorderSizePixel =
+		0
 
 	page.CanvasSize =
 		UDim2.new()
@@ -3564,13 +5099,23 @@ local function createPage(name)
 	page.AutomaticCanvasSize =
 		Enum.AutomaticSize.Y
 
-	page.ScrollBarThickness = 3
+	page.ScrollBarThickness =
+		IS_PHONE and 7 or 3
 
 	page.ScrollBarImageColor3 =
 		Theme.Accent
 
-	page.Visible = false
-	page.Parent = content
+	page.ScrollingDirection =
+		Enum.ScrollingDirection.Y
+
+	page.ElasticBehavior =
+		Enum.ElasticBehavior.WhenScrollable
+
+	page.Visible =
+		false
+
+	page.Parent =
+		content
 
 	local layout =
 		Instance.new("UIListLayout")
@@ -3578,47 +5123,66 @@ local function createPage(name)
 	layout.Padding =
 		UDim.new(
 			0,
-			8
+			IS_PHONE and 10 or 8
 		)
 
-	layout.Parent = page
+	layout.Parent =
+		page
 
 	padding(
 		page,
 		0,
-		7,
+		IS_PHONE and 10 or 7,
 		0,
-		8
+		12
 	)
 
-	pages[name] = page
+	pages[name] =
+		page
 
 	return page
 end
 
 local seedPage =
-	createPage("Seed")
+	createPage(
+		"Seed"
+	)
 
 local playerPage =
-	createPage("Player")
+	createPage(
+		"Player"
+	)
 
 local emotePage =
-	createPage("Emotes")
+	createPage(
+		"Emotes"
+	)
 
 local utilityPage =
-	createPage("Utility")
+	createPage(
+		"Utility"
+	)
+
+local updatesPage =
+	createPage(
+		"Updates"
+	)
 
 local function switchPage(
 	name,
-	title,
-	subtitle
+	titleText,
+	subtitleText
 )
-	for pageName, page in pairs(pages) do
+	for pageName, page in pairs(
+		pages
+	) do
 		page.Visible =
 			pageName == name
 	end
 
-	for pageName, button in pairs(navButtons) do
+	for pageName, button in pairs(
+		navButtons
+	) do
 		local selected =
 			pageName == name
 
@@ -3640,17 +5204,17 @@ local function switchPage(
 	end
 
 	pageTitle.Text =
-		title
+		titleText
 
 	pageSub.Text =
-		subtitle
+		subtitleText
 end
 
 local function createNav(
 	name,
 	icon,
-	title,
-	subtitle
+	titleText,
+	subtitleText
 )
 	local button =
 		Instance.new("TextButton")
@@ -3660,14 +5224,17 @@ local function createNav(
 			1,
 			0,
 			0,
-			40
+			IS_PHONE and 46 or 40
 		)
 
 	button.BackgroundColor3 =
 		Theme.Sidebar
 
-	button.BorderSizePixel = 0
-	button.AutoButtonColor = false
+	button.BorderSizePixel =
+		0
+
+	button.AutoButtonColor =
+		false
 
 	button.Font =
 		Enum.Font.GothamSemibold
@@ -3675,12 +5242,13 @@ local function createNav(
 	button.Text =
 		icon
 		.. "   "
-		.. title
+		.. titleText
 
 	button.TextColor3 =
 		Theme.SubText
 
-	button.TextSize = 10
+	button.TextSize =
+		IS_PHONE and 11 or 10
 
 	button.TextXAlignment =
 		Enum.TextXAlignment.Left
@@ -3706,8 +5274,8 @@ local function createNav(
 
 			switchPage(
 				name,
-				title,
-				subtitle
+				titleText,
+				subtitleText
 			)
 		end)
 end
@@ -3740,10 +5308,14 @@ createNav(
 	"Shops and session"
 )
 
-local function section(
-	parent,
-	text
+createNav(
+	"Updates",
+	"✦",
+	"Updates",
+	"what i changed"
 )
+
+local function section(parent, text)
 	local label =
 		Instance.new("TextLabel")
 
@@ -3752,21 +5324,25 @@ local function section(
 			1,
 			0,
 			0,
-			23
+			IS_PHONE and 27 or 23
 		)
 
-	label.BackgroundTransparency = 1
+	label.BackgroundTransparency =
+		1
 
 	label.Font =
 		Enum.Font.GothamSemibold
 
 	label.Text =
-		string.upper(text)
+		string.upper(
+			text
+		)
 
 	label.TextColor3 =
 		Theme.SubText
 
-	label.TextSize = 8
+	label.TextSize =
+		IS_PHONE and 9 or 8
 
 	label.TextXAlignment =
 		Enum.TextXAlignment.Left
@@ -3777,7 +5353,7 @@ end
 
 local function createToggle(
 	parent,
-	title,
+	titleText,
 	description,
 	callback
 )
@@ -3789,15 +5365,20 @@ local function createToggle(
 			1,
 			0,
 			0,
-			63
+			IS_PHONE and 70 or 63
 		)
 
 	card.BackgroundColor3 =
 		Theme.Card
 
-	card.BorderSizePixel = 0
-	card.AutoButtonColor = false
-	card.Text = ""
+	card.BorderSizePixel =
+		0
+
+	card.AutoButtonColor =
+		false
+
+	card.Text =
+		""
 
 	card.Parent =
 		parent
@@ -3807,12 +5388,14 @@ local function createToggle(
 		8
 	)
 
-	stroke(card)
+	stroke(
+		card
+	)
 
-	local titleText =
+	local title =
 		Instance.new("TextLabel")
 
-	titleText.Size =
+	title.Size =
 		UDim2.new(
 			1,
 			-78,
@@ -3820,29 +5403,31 @@ local function createToggle(
 			18
 		)
 
-	titleText.Position =
+	title.Position =
 		UDim2.fromOffset(
 			13,
-			11
+			IS_PHONE and 13 or 11
 		)
 
-	titleText.BackgroundTransparency = 1
+	title.BackgroundTransparency =
+		1
 
-	titleText.Font =
+	title.Font =
 		Enum.Font.GothamSemibold
 
-	titleText.Text =
-		title
+	title.Text =
+		titleText
 
-	titleText.TextColor3 =
+	title.TextColor3 =
 		Theme.Text
 
-	titleText.TextSize = 11
+	title.TextSize =
+		IS_PHONE and 12 or 11
 
-	titleText.TextXAlignment =
+	title.TextXAlignment =
 		Enum.TextXAlignment.Left
 
-	titleText.Parent =
+	title.Parent =
 		card
 
 	local desc =
@@ -3853,16 +5438,17 @@ local function createToggle(
 			1,
 			-78,
 			0,
-			16
+			18
 		)
 
 	desc.Position =
 		UDim2.fromOffset(
 			13,
-			33
+			IS_PHONE and 38 or 33
 		)
 
-	desc.BackgroundTransparency = 1
+	desc.BackgroundTransparency =
+		1
 
 	desc.Font =
 		Enum.Font.Gotham
@@ -3873,7 +5459,8 @@ local function createToggle(
 	desc.TextColor3 =
 		Theme.SubText
 
-	desc.TextSize = 9
+	desc.TextSize =
+		IS_PHONE and 10 or 9
 
 	desc.TextXAlignment =
 		Enum.TextXAlignment.Left
@@ -3889,22 +5476,23 @@ local function createToggle(
 
 	switch.Size =
 		UDim2.fromOffset(
-			36,
-			20
+			IS_PHONE and 42 or 36,
+			IS_PHONE and 24 or 20
 		)
 
 	switch.Position =
 		UDim2.new(
 			1,
-			-49,
+			IS_PHONE and -55 or -49,
 			0.5,
-			-10
+			IS_PHONE and -12 or -10
 		)
 
 	switch.BackgroundColor3 =
 		Theme.Off
 
-	switch.BorderSizePixel = 0
+	switch.BorderSizePixel =
+		0
 
 	switch.Parent =
 		card
@@ -3914,13 +5502,16 @@ local function createToggle(
 		20
 	)
 
+	local knobSize =
+		IS_PHONE and 18 or 14
+
 	local knob =
 		Instance.new("Frame")
 
 	knob.Size =
 		UDim2.fromOffset(
-			14,
-			14
+			knobSize,
+			knobSize
 		)
 
 	knob.Position =
@@ -3932,7 +5523,8 @@ local function createToggle(
 	knob.BackgroundColor3 =
 		Theme.Text
 
-	knob.BorderSizePixel = 0
+	knob.BorderSizePixel =
+		0
 
 	knob.Parent =
 		switch
@@ -3942,10 +5534,12 @@ local function createToggle(
 		20
 	)
 
-	local enabled = false
+	local enabled =
+		false
 
 	local function setEnabled(value)
-		enabled = value
+		enabled =
+			value
 
 		tween(
 			switch,
@@ -3965,7 +5559,7 @@ local function createToggle(
 				Position =
 					enabled
 						and UDim2.fromOffset(
-							19,
+							IS_PHONE and 21 or 19,
 							3
 						)
 						or UDim2.fromOffset(
@@ -3975,7 +5569,9 @@ local function createToggle(
 			}
 		)
 
-		callback(enabled)
+		callback(
+			enabled
+		)
 	end
 
 	card.MouseButton1Click:
@@ -3986,44 +5582,20 @@ local function createToggle(
 			)
 		end)
 
-	card.MouseEnter:
-		Connect(function()
-
-			tween(
-				card,
-				0.12,
-				{
-					BackgroundColor3 =
-						Theme.CardHover
-				}
-			)
-		end)
-
-	card.MouseLeave:
-		Connect(function()
-
-			tween(
-				card,
-				0.12,
-				{
-					BackgroundColor3 =
-						Theme.Card
-				}
-			)
-		end)
-
 	return {
-		Set = setEnabled,
+		Set =
+			setEnabled,
 
-		Get = function()
-			return enabled
-		end
+		Get =
+			function()
+				return enabled
+			end
 	}
 end
 
 local function createAction(
 	parent,
-	title,
+	titleText,
 	description,
 	buttonText,
 	callback
@@ -4036,15 +5608,20 @@ local function createAction(
 			1,
 			0,
 			0,
-			63
+			IS_PHONE and 70 or 63
 		)
 
 	card.BackgroundColor3 =
 		Theme.Card
 
-	card.BorderSizePixel = 0
-	card.AutoButtonColor = false
-	card.Text = ""
+	card.BorderSizePixel =
+		0
+
+	card.AutoButtonColor =
+		false
+
+	card.Text =
+		""
 
 	card.Parent =
 		parent
@@ -4054,42 +5631,46 @@ local function createAction(
 		8
 	)
 
-	stroke(card)
+	stroke(
+		card
+	)
 
-	local titleText =
+	local title =
 		Instance.new("TextLabel")
 
-	titleText.Size =
+	title.Size =
 		UDim2.new(
 			1,
-			-85,
+			-92,
 			0,
 			18
 		)
 
-	titleText.Position =
+	title.Position =
 		UDim2.fromOffset(
 			13,
-			11
+			IS_PHONE and 13 or 11
 		)
 
-	titleText.BackgroundTransparency = 1
+	title.BackgroundTransparency =
+		1
 
-	titleText.Font =
+	title.Font =
 		Enum.Font.GothamSemibold
 
-	titleText.Text =
-		title
+	title.Text =
+		titleText
 
-	titleText.TextColor3 =
+	title.TextColor3 =
 		Theme.Text
 
-	titleText.TextSize = 11
+	title.TextSize =
+		IS_PHONE and 12 or 11
 
-	titleText.TextXAlignment =
+	title.TextXAlignment =
 		Enum.TextXAlignment.Left
 
-	titleText.Parent =
+	title.Parent =
 		card
 
 	local desc =
@@ -4098,18 +5679,19 @@ local function createAction(
 	desc.Size =
 		UDim2.new(
 			1,
-			-85,
+			-92,
 			0,
-			16
+			18
 		)
 
 	desc.Position =
 		UDim2.fromOffset(
 			13,
-			33
+			IS_PHONE and 38 or 33
 		)
 
-	desc.BackgroundTransparency = 1
+	desc.BackgroundTransparency =
+		1
 
 	desc.Font =
 		Enum.Font.Gotham
@@ -4120,7 +5702,8 @@ local function createAction(
 	desc.TextColor3 =
 		Theme.SubText
 
-	desc.TextSize = 9
+	desc.TextSize =
+		IS_PHONE and 10 or 9
 
 	desc.TextXAlignment =
 		Enum.TextXAlignment.Left
@@ -4136,22 +5719,23 @@ local function createAction(
 
 	run.Size =
 		UDim2.fromOffset(
-			52,
-			25
+			IS_PHONE and 60 or 52,
+			IS_PHONE and 30 or 25
 		)
 
 	run.Position =
 		UDim2.new(
 			1,
-			-65,
+			IS_PHONE and -73 or -65,
 			0.5,
-			-12
+			IS_PHONE and -15 or -12
 		)
 
 	run.BackgroundColor3 =
 		Theme.AccentDark
 
-	run.BorderSizePixel = 0
+	run.BorderSizePixel =
+		0
 
 	run.Font =
 		Enum.Font.GothamSemibold
@@ -4162,7 +5746,8 @@ local function createAction(
 	run.TextColor3 =
 		Theme.Accent
 
-	run.TextSize = 8
+	run.TextSize =
+		IS_PHONE and 9 or 8
 
 	run.Parent =
 		card
@@ -4216,38 +5801,12 @@ local function createAction(
 			)
 		end)
 
-	card.MouseEnter:
-		Connect(function()
-
-			tween(
-				card,
-				0.12,
-				{
-					BackgroundColor3 =
-						Theme.CardHover
-				}
-			)
-		end)
-
-	card.MouseLeave:
-		Connect(function()
-
-			tween(
-				card,
-				0.12,
-				{
-					BackgroundColor3 =
-						Theme.Card
-				}
-			)
-		end)
-
 	return card
 end
 
 local function createSlider(
 	parent,
-	title,
+	titleText,
 	minimum,
 	maximum,
 	default,
@@ -4261,26 +5820,31 @@ local function createSlider(
 			1,
 			0,
 			0,
-			76
+			IS_PHONE and 84 or 76
 		)
 
 	card.BackgroundColor3 =
 		Theme.Card
 
-	card.BorderSizePixel = 0
-	card.Parent = parent
+	card.BorderSizePixel =
+		0
+
+	card.Parent =
+		parent
 
 	corner(
 		card,
 		8
 	)
 
-	stroke(card)
+	stroke(
+		card
+	)
 
-	local titleText =
+	local title =
 		Instance.new("TextLabel")
 
-	titleText.Size =
+	title.Size =
 		UDim2.new(
 			1,
 			-70,
@@ -4288,29 +5852,31 @@ local function createSlider(
 			18
 		)
 
-	titleText.Position =
+	title.Position =
 		UDim2.fromOffset(
 			13,
-			10
+			11
 		)
 
-	titleText.BackgroundTransparency = 1
+	title.BackgroundTransparency =
+		1
 
-	titleText.Font =
+	title.Font =
 		Enum.Font.GothamSemibold
 
-	titleText.Text =
-		title
+	title.Text =
+		titleText
 
-	titleText.TextColor3 =
+	title.TextColor3 =
 		Theme.Text
 
-	titleText.TextSize = 11
+	title.TextSize =
+		IS_PHONE and 12 or 11
 
-	titleText.TextXAlignment =
+	title.TextXAlignment =
 		Enum.TextXAlignment.Left
 
-	titleText.Parent =
+	title.Parent =
 		card
 
 	local valueLabel =
@@ -4318,14 +5884,14 @@ local function createSlider(
 
 	valueLabel.Size =
 		UDim2.fromOffset(
-			50,
-			21
+			IS_PHONE and 58 or 50,
+			IS_PHONE and 25 or 21
 		)
 
 	valueLabel.Position =
 		UDim2.new(
 			1,
-			-63,
+			IS_PHONE and -71 or -63,
 			0,
 			9
 		)
@@ -4337,18 +5903,22 @@ local function createSlider(
 			36
 		)
 
-	valueLabel.BorderSizePixel = 0
+	valueLabel.BorderSizePixel =
+		0
 
 	valueLabel.Font =
 		Enum.Font.GothamSemibold
 
 	valueLabel.Text =
-		tostring(default)
+		tostring(
+			default
+		)
 
 	valueLabel.TextColor3 =
 		Theme.Accent
 
-	valueLabel.TextSize = 9
+	valueLabel.TextSize =
+		IS_PHONE and 10 or 9
 
 	valueLabel.Parent =
 		card
@@ -4366,13 +5936,13 @@ local function createSlider(
 			1,
 			-26,
 			0,
-			5
+			IS_PHONE and 7 or 5
 		)
 
 	track.Position =
 		UDim2.fromOffset(
 			13,
-			51
+			IS_PHONE and 58 or 51
 		)
 
 	track.BackgroundColor3 =
@@ -4382,7 +5952,8 @@ local function createSlider(
 			52
 		)
 
-	track.BorderSizePixel = 0
+	track.BorderSizePixel =
+		0
 
 	track.Parent =
 		card
@@ -4410,7 +5981,8 @@ local function createSlider(
 	fill.BackgroundColor3 =
 		Theme.Accent
 
-	fill.BorderSizePixel = 0
+	fill.BorderSizePixel =
+		0
 
 	fill.Parent =
 		track
@@ -4431,8 +6003,8 @@ local function createSlider(
 
 	knob.Size =
 		UDim2.fromOffset(
-			12,
-			12
+			IS_PHONE and 16 or 12,
+			IS_PHONE and 16 or 12
 		)
 
 	knob.Position =
@@ -4446,7 +6018,8 @@ local function createSlider(
 	knob.BackgroundColor3 =
 		Theme.Text
 
-	knob.BorderSizePixel = 0
+	knob.BorderSizePixel =
+		0
 
 	knob.Parent =
 		track
@@ -4456,16 +6029,15 @@ local function createSlider(
 		10
 	)
 
-	local dragging = false
+	local dragging =
+		false
 
 	local function update(input)
 		local x =
 			math.clamp(
 				input.Position.X
 					- track.AbsolutePosition.X,
-
 				0,
-
 				track.AbsoluteSize.X
 			)
 
@@ -4502,9 +6074,13 @@ local function createSlider(
 			)
 
 		valueLabel.Text =
-			tostring(value)
+			tostring(
+				value
+			)
 
-		callback(value)
+		callback(
+			value
+		)
 	end
 
 	track.InputBegan:
@@ -4516,9 +6092,12 @@ local function createSlider(
 				or input.UserInputType
 					== Enum.UserInputType.Touch
 			then
-				dragging = true
+				dragging =
+					true
 
-				update(input)
+				update(
+					input
+				)
 			end
 		end)
 
@@ -4535,7 +6114,9 @@ local function createSlider(
 				or input.UserInputType
 					== Enum.UserInputType.Touch
 			then
-				update(input)
+				update(
+					input
+				)
 			end
 		end)
 
@@ -4548,14 +6129,15 @@ local function createSlider(
 				or input.UserInputType
 					== Enum.UserInputType.Touch
 			then
-				dragging = false
+				dragging =
+					false
 			end
 		end)
 end
 
 local function createNumberInput(
 	parent,
-	title,
+	titleText,
 	description,
 	default,
 	minimum,
@@ -4570,13 +6152,14 @@ local function createNumberInput(
 			1,
 			0,
 			0,
-			67
+			IS_PHONE and 74 or 67
 		)
 
 	card.BackgroundColor3 =
 		Theme.Card
 
-	card.BorderSizePixel = 0
+	card.BorderSizePixel =
+		0
 
 	card.Parent =
 		parent
@@ -4586,42 +6169,46 @@ local function createNumberInput(
 		8
 	)
 
-	stroke(card)
+	stroke(
+		card
+	)
 
-	local titleText =
+	local title =
 		Instance.new("TextLabel")
 
-	titleText.Size =
+	title.Size =
 		UDim2.new(
 			1,
-			-105,
+			-112,
 			0,
 			18
 		)
 
-	titleText.Position =
+	title.Position =
 		UDim2.fromOffset(
 			13,
 			10
 		)
 
-	titleText.BackgroundTransparency = 1
+	title.BackgroundTransparency =
+		1
 
-	titleText.Font =
+	title.Font =
 		Enum.Font.GothamSemibold
 
-	titleText.Text =
-		title
+	title.Text =
+		titleText
 
-	titleText.TextColor3 =
+	title.TextColor3 =
 		Theme.Text
 
-	titleText.TextSize = 11
+	title.TextSize =
+		IS_PHONE and 12 or 11
 
-	titleText.TextXAlignment =
+	title.TextXAlignment =
 		Enum.TextXAlignment.Left
 
-	titleText.Parent =
+	title.Parent =
 		card
 
 	local desc =
@@ -4630,9 +6217,9 @@ local function createNumberInput(
 	desc.Size =
 		UDim2.new(
 			1,
-			-105,
+			-112,
 			0,
-			16
+			20
 		)
 
 	desc.Position =
@@ -4641,7 +6228,8 @@ local function createNumberInput(
 			34
 		)
 
-	desc.BackgroundTransparency = 1
+	desc.BackgroundTransparency =
+		1
 
 	desc.Font =
 		Enum.Font.Gotham
@@ -4652,7 +6240,8 @@ local function createNumberInput(
 	desc.TextColor3 =
 		Theme.SubText
 
-	desc.TextSize = 9
+	desc.TextSize =
+		IS_PHONE and 10 or 9
 
 	desc.TextXAlignment =
 		Enum.TextXAlignment.Left
@@ -4665,16 +6254,16 @@ local function createNumberInput(
 
 	box.Size =
 		UDim2.fromOffset(
-			78,
-			32
+			IS_PHONE and 88 or 78,
+			IS_PHONE and 38 or 32
 		)
 
 	box.Position =
 		UDim2.new(
 			1,
-			-91,
+			IS_PHONE and -101 or -91,
 			0.5,
-			-16
+			IS_PHONE and -19 or -16
 		)
 
 	box.BackgroundColor3 =
@@ -4684,19 +6273,25 @@ local function createNumberInput(
 			36
 		)
 
-	box.BorderSizePixel = 0
-	box.ClearTextOnFocus = false
+	box.BorderSizePixel =
+		0
+
+	box.ClearTextOnFocus =
+		false
 
 	box.Font =
 		Enum.Font.GothamSemibold
 
 	box.Text =
-		tostring(default)
+		tostring(
+			default
+		)
 
 	box.TextColor3 =
 		Theme.Accent
 
-	box.TextSize = 10
+	box.TextSize =
+		IS_PHONE and 11 or 10
 
 	box.Parent =
 		card
@@ -4706,7 +6301,9 @@ local function createNumberInput(
 		6
 	)
 
-	stroke(box)
+	stroke(
+		box
+	)
 
 	box.FocusLost:
 		Connect(function()
@@ -4718,7 +6315,9 @@ local function createNumberInput(
 
 			if not value then
 				box.Text =
-					tostring(default)
+					tostring(
+						default
+					)
 
 				return
 			end
@@ -4736,13 +6335,221 @@ local function createNumberInput(
 				) / 100
 
 			box.Text =
-				tostring(value)
+				tostring(
+					value
+				)
 
-			callback(value)
+			callback(
+				value
+			)
 		end)
 
 	return box
 end
+
+local function createUpdateCard(
+	parent,
+	version,
+	dateText,
+	lines
+)
+	local card =
+		Instance.new("Frame")
+
+	card.Size =
+		UDim2.new(
+			1,
+			0,
+			0,
+			IS_PHONE and 205 or 185
+		)
+
+	card.BackgroundColor3 =
+		Theme.Card
+
+	card.BorderSizePixel =
+		0
+
+	card.Parent =
+		parent
+
+	corner(
+		card,
+		8
+	)
+
+	stroke(
+		card
+	)
+
+	local versionLabel =
+		Instance.new("TextLabel")
+
+	versionLabel.Size =
+		UDim2.new(
+			1,
+			-26,
+			0,
+			22
+		)
+
+	versionLabel.Position =
+		UDim2.fromOffset(
+			13,
+			12
+		)
+
+	versionLabel.BackgroundTransparency =
+		1
+
+	versionLabel.Font =
+		Enum.Font.GothamBold
+
+	versionLabel.Text =
+		version
+
+	versionLabel.TextColor3 =
+		Theme.Accent
+
+	versionLabel.TextSize =
+		IS_PHONE and 13 or 12
+
+	versionLabel.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	versionLabel.Parent =
+		card
+
+	local dateLabel =
+		Instance.new("TextLabel")
+
+	dateLabel.Size =
+		UDim2.new(
+			1,
+			-26,
+			0,
+			17
+		)
+
+	dateLabel.Position =
+		UDim2.fromOffset(
+			13,
+			35
+		)
+
+	dateLabel.BackgroundTransparency =
+		1
+
+	dateLabel.Font =
+		Enum.Font.Gotham
+
+	dateLabel.Text =
+		dateText
+
+	dateLabel.TextColor3 =
+		Theme.SubText
+
+	dateLabel.TextSize =
+		IS_PHONE and 9 or 8
+
+	dateLabel.TextXAlignment =
+		Enum.TextXAlignment.Left
+
+	dateLabel.Parent =
+		card
+
+	local lineHolder =
+		Instance.new("Frame")
+
+	lineHolder.Size =
+		UDim2.new(
+			1,
+			-26,
+			1,
+			-63
+		)
+
+	lineHolder.Position =
+		UDim2.fromOffset(
+			13,
+			57
+		)
+
+	lineHolder.BackgroundTransparency =
+		1
+
+	lineHolder.Parent =
+		card
+
+	local lineLayout =
+		Instance.new("UIListLayout")
+
+	lineLayout.Padding =
+		UDim.new(
+			0,
+			IS_PHONE and 7 or 5
+		)
+
+	lineLayout.Parent =
+		lineHolder
+
+	for _, text in ipairs(
+		lines
+	) do
+		local line =
+			Instance.new("TextLabel")
+
+		line.Size =
+			UDim2.new(
+				1,
+				0,
+				0,
+				IS_PHONE and 21 or 19
+			)
+
+		line.BackgroundTransparency =
+			1
+
+		line.Font =
+			Enum.Font.Gotham
+
+		line.Text =
+			"• " .. text
+
+		line.TextColor3 =
+			Theme.Text
+
+		line.TextSize =
+			IS_PHONE and 10 or 9
+
+		line.TextXAlignment =
+			Enum.TextXAlignment.Left
+
+		line.Parent =
+			lineHolder
+	end
+end
+
+section(
+	updatesPage,
+	"Latest Update"
+)
+
+createUpdateCard(
+	updatesPage,
+
+	"new update",
+
+	"09/08/26",
+
+	{
+		"made menu work on phone",
+		"added a better key system",
+		"new gui for phone",
+		"fixed auto farm",
+		"fixed auto sell not working"
+	}
+)
 
 section(
 	seedPage,
@@ -4751,13 +6558,11 @@ section(
 
 createToggle(
 	seedPage,
-
 	"Auto Buy Seeds",
-
 	"Spams detected seed Buy prompts without rescanning the map.",
-
 	function(value)
-		State.AutoBuy = value
+		State.AutoBuy =
+			value
 
 		if value then
 			task.spawn(function()
@@ -4776,13 +6581,9 @@ createToggle(
 
 createAction(
 	seedPage,
-
 	"Buy All Seeds Now",
-
 	"Runs 7 full seed-buy passes, 0.1 seconds apart.",
-
 	"BUY",
-
 	function()
 		buyAllSeedsNow()
 
@@ -4795,13 +6596,11 @@ createAction(
 
 createToggle(
 	seedPage,
-
 	"Auto Harvest",
-
 	"Platform flies to Collect fruits on your own plot and picks them up.",
-
 	function(value)
-		State.AutoHarvest = value
+		State.AutoHarvest =
+			value
 
 		if value then
 			watchOwnPlants()
@@ -4825,13 +6624,11 @@ createToggle(
 
 createToggle(
 	seedPage,
-
 	"Auto Sell",
-
 	"TPs to Steven, sells inventory, then returns to your old position.",
-
 	function(value)
-		State.AutoSell = value
+		State.AutoSell =
+			value
 
 		notify(
 			"Auto Sell",
@@ -4849,13 +6646,9 @@ section(
 
 createAction(
 	seedPage,
-
 	"Sell Whole Inventory",
-
 	"TPs to Steven, clicks Sell My Inventory, then teleports back.",
-
 	"SELL",
-
 	function()
 		local success =
 			sellInventory()
@@ -4876,13 +6669,11 @@ section(
 
 createToggle(
 	playerPage,
-
 	"Walk Speed",
-
 	"Override the normal movement speed.",
-
 	function(value)
-		State.WalkSpeed = value
+		State.WalkSpeed =
+			value
 
 		applyWalkSpeed()
 	end
@@ -4890,15 +6681,13 @@ createToggle(
 
 createSlider(
 	playerPage,
-
 	"Walk Speed Value",
-
 	16,
 	150,
 	State.WalkSpeedValue,
-
 	function(value)
-		State.WalkSpeedValue = value
+		State.WalkSpeedValue =
+			value
 
 		if State.WalkSpeed then
 			applyWalkSpeed()
@@ -4908,13 +6697,11 @@ createSlider(
 
 createToggle(
 	playerPage,
-
 	"Fly",
-
 	"WASD movement, Space/E up, Ctrl/Q down.",
-
 	function(value)
-		State.Fly = value
+		State.Fly =
+			value
 
 		if value then
 			startFly()
@@ -4926,15 +6713,13 @@ createToggle(
 
 createSlider(
 	playerPage,
-
 	"Fly Speed",
-
 	20,
 	200,
 	State.FlySpeed,
-
 	function(value)
-		State.FlySpeed = value
+		State.FlySpeed =
+			value
 	end
 )
 
@@ -4945,14 +6730,14 @@ section(
 
 createToggle(
 	emotePage,
-
 	"Spam Emotes",
-
 	"Cycles through the emotes in the game's Emotes menu.",
-
 	function(value)
-		State.EmoteSpam = value
-		emoteIndex = 0
+		State.EmoteSpam =
+			value
+
+		emoteIndex =
+			0
 
 		notify(
 			"Emote Spammer",
@@ -4965,18 +6750,14 @@ createToggle(
 
 createNumberInput(
 	emotePage,
-
 	"Spam Delay",
-
 	"Seconds between each emote. Example: 0.1",
-
 	State.EmoteDelay,
-
 	0.05,
 	10,
-
 	function(value)
-		State.EmoteDelay = value
+		State.EmoteDelay =
+			value
 
 		notify(
 			"Emote Speed",
@@ -4994,13 +6775,9 @@ section(
 
 createAction(
 	emotePage,
-
 	"Open Emotes",
-
 	"Opens the game's Emotes menu.",
-
 	"OPEN",
-
 	function()
 		local success =
 			openEmotes()
@@ -5016,13 +6793,9 @@ createAction(
 
 createAction(
 	emotePage,
-
 	"Send Next Emote",
-
 	"Sends one emote for testing.",
-
 	"SEND",
-
 	function()
 		local success =
 			sendNextEmote()
@@ -5043,16 +6816,14 @@ section(
 
 createAction(
 	utilityPage,
-
 	"Open Gear Shop",
-
 	"TPs to the Gear Shop and opens it.",
-
 	"OPEN",
-
 	function()
 		local success =
-			openShop("Gear")
+			openShop(
+				"Gear"
+			)
 
 		notify(
 			"Gear Shop",
@@ -5065,16 +6836,14 @@ createAction(
 
 createAction(
 	utilityPage,
-
 	"Open Furniture",
-
 	"TPs to Furniture and opens it.",
-
 	"OPEN",
-
 	function()
 		local success =
-			openShop("Furniture")
+			openShop(
+				"Furniture"
+			)
 
 		notify(
 			"Furniture",
@@ -5087,16 +6856,14 @@ createAction(
 
 createAction(
 	utilityPage,
-
 	"Open Farmers Market",
-
 	"TPs to the Farmers Market and opens it.",
-
 	"OPEN",
-
 	function()
 		local success =
-			openShop("Market")
+			openShop(
+				"Market"
+			)
 
 		notify(
 			"Farmers Market",
@@ -5109,16 +6876,14 @@ createAction(
 
 createAction(
 	utilityPage,
-
 	"Open Pet Shop",
-
 	"TPs to the Pet Shop and opens it.",
-
 	"OPEN",
-
 	function()
 		local success =
-			openShop("Pets")
+			openShop(
+				"Pets"
+			)
 
 		notify(
 			"Pet Shop",
@@ -5136,13 +6901,11 @@ section(
 
 createToggle(
 	utilityPage,
-
 	"Anti AFK",
-
 	"Stops the normal Roblox idle kick.",
-
 	function(value)
-		State.AntiAFK = value
+		State.AntiAFK =
+			value
 
 		notify(
 			"Anti AFK",
@@ -5155,13 +6918,9 @@ createToggle(
 
 createAction(
 	utilityPage,
-
 	"Rejoin Server",
-
 	"Reconnect to the same server.",
-
 	"JOIN",
-
 	function()
 		rejoin()
 	end
@@ -5169,13 +6928,9 @@ createAction(
 
 createAction(
 	utilityPage,
-
 	"Leave Server",
-
 	"Disconnect from the game.",
-
 	"LEAVE",
-
 	function()
 		leave()
 	end
@@ -5183,13 +6938,9 @@ createAction(
 
 createAction(
 	utilityPage,
-
 	"Reset Character",
-
 	"Respawn your character.",
-
 	"RESET",
-
 	function()
 		resetCharacter()
 	end
@@ -5197,13 +6948,9 @@ createAction(
 
 createAction(
 	utilityPage,
-
 	"Copy Server ID",
-
 	"Copy the current server JobId.",
-
 	"COPY",
-
 	function()
 		local success =
 			copyText(
@@ -5235,11 +6982,20 @@ unloadOverlay.BackgroundColor3 =
 		0
 	)
 
-unloadOverlay.BackgroundTransparency = 0.25
-unloadOverlay.BorderSizePixel = 0
-unloadOverlay.Visible = false
-unloadOverlay.ZIndex = 100
-unloadOverlay.Parent = main
+unloadOverlay.BackgroundTransparency =
+	0.25
+
+unloadOverlay.BorderSizePixel =
+	0
+
+unloadOverlay.Visible =
+	false
+
+unloadOverlay.ZIndex =
+	100
+
+unloadOverlay.Parent =
+	main
 
 local unloadPopup =
 	Instance.new("Frame")
@@ -5261,9 +7017,14 @@ unloadPopup.Position =
 unloadPopup.BackgroundColor3 =
 	Theme.Background
 
-unloadPopup.BorderSizePixel = 0
-unloadPopup.ZIndex = 101
-unloadPopup.Parent = unloadOverlay
+unloadPopup.BorderSizePixel =
+	0
+
+unloadPopup.ZIndex =
+	101
+
+unloadPopup.Parent =
+	unloadOverlay
 
 corner(
 	unloadPopup,
@@ -5276,7 +7037,8 @@ local unloadStroke =
 		Theme.Danger
 	)
 
-unloadStroke.Transparency = 0.25
+unloadStroke.Transparency =
+	0.25
 
 local unloadIcon =
 	Instance.new("TextLabel")
@@ -5302,18 +7064,23 @@ unloadIcon.BackgroundColor3 =
 		27
 	)
 
-unloadIcon.BorderSizePixel = 0
+unloadIcon.BorderSizePixel =
+	0
 
 unloadIcon.Font =
 	Enum.Font.GothamBold
 
-unloadIcon.Text = "!"
+unloadIcon.Text =
+	"!"
 
 unloadIcon.TextColor3 =
 	Theme.Danger
 
-unloadIcon.TextSize = 24
-unloadIcon.ZIndex = 102
+unloadIcon.TextSize =
+	24
+
+unloadIcon.ZIndex =
+	102
 
 unloadIcon.Parent =
 	unloadPopup
@@ -5340,7 +7107,8 @@ unloadTitle.Position =
 		80
 	)
 
-unloadTitle.BackgroundTransparency = 1
+unloadTitle.BackgroundTransparency =
+	1
 
 unloadTitle.Font =
 	Enum.Font.GothamBold
@@ -5351,8 +7119,11 @@ unloadTitle.Text =
 unloadTitle.TextColor3 =
 	Theme.Text
 
-unloadTitle.TextSize = 15
-unloadTitle.ZIndex = 102
+unloadTitle.TextSize =
+	15
+
+unloadTitle.ZIndex =
+	102
 
 unloadTitle.Parent =
 	unloadPopup
@@ -5374,7 +7145,8 @@ unloadWarning.Position =
 		110
 	)
 
-unloadWarning.BackgroundTransparency = 1
+unloadWarning.BackgroundTransparency =
+	1
 
 unloadWarning.Font =
 	Enum.Font.Gotham
@@ -5385,9 +7157,14 @@ unloadWarning.Text =
 unloadWarning.TextColor3 =
 	Theme.SubText
 
-unloadWarning.TextSize = 10
-unloadWarning.TextWrapped = true
-unloadWarning.ZIndex = 102
+unloadWarning.TextSize =
+	10
+
+unloadWarning.TextWrapped =
+	true
+
+unloadWarning.ZIndex =
+	102
 
 unloadWarning.Parent =
 	unloadPopup
@@ -5412,7 +7189,8 @@ cancelUnload.Position =
 cancelUnload.BackgroundColor3 =
 	Theme.Card
 
-cancelUnload.BorderSizePixel = 0
+cancelUnload.BorderSizePixel =
+	0
 
 cancelUnload.Font =
 	Enum.Font.GothamSemibold
@@ -5423,8 +7201,11 @@ cancelUnload.Text =
 cancelUnload.TextColor3 =
 	Theme.Text
 
-cancelUnload.TextSize = 10
-cancelUnload.ZIndex = 102
+cancelUnload.TextSize =
+	10
+
+cancelUnload.ZIndex =
+	102
 
 cancelUnload.Parent =
 	unloadPopup
@@ -5434,7 +7215,9 @@ corner(
 	7
 )
 
-stroke(cancelUnload)
+stroke(
+	cancelUnload
+)
 
 local confirmUnload =
 	Instance.new("TextButton")
@@ -5458,7 +7241,8 @@ confirmUnload.Position =
 confirmUnload.BackgroundColor3 =
 	Theme.Danger
 
-confirmUnload.BorderSizePixel = 0
+confirmUnload.BorderSizePixel =
+	0
 
 confirmUnload.Font =
 	Enum.Font.GothamSemibold
@@ -5473,8 +7257,11 @@ confirmUnload.TextColor3 =
 		1
 	)
 
-confirmUnload.TextSize = 10
-confirmUnload.ZIndex = 102
+confirmUnload.TextSize =
+	10
+
+confirmUnload.ZIndex =
+	102
 
 confirmUnload.Parent =
 	unloadPopup
@@ -5491,22 +7278,20 @@ section(
 
 createAction(
 	utilityPage,
-
 	"Unload Menu",
-
 	"Turns off all mods and closes the menu for this session.",
-
 	"UNLOAD",
-
 	function()
-		unloadOverlay.Visible = true
+		unloadOverlay.Visible =
+			true
 	end
 )
 
 cancelUnload.MouseButton1Click:
 	Connect(function()
 
-		unloadOverlay.Visible = false
+		unloadOverlay.Visible =
+			false
 	end)
 
 switchPage(
@@ -5518,14 +7303,27 @@ switchPage(
 minimize.MouseButton1Click:
 	Connect(function()
 
-		main.Visible = false
+		main.Visible =
+			false
+
+		syncPhoneButton()
 	end)
 
 close.MouseButton1Click:
 	Connect(function()
 
-		main.Visible = false
+		main.Visible =
+			false
+
+		syncPhoneButton()
 	end)
+
+main:GetPropertyChangedSignal(
+	"Visible"
+):
+	Connect(
+		syncPhoneButton
+	)
 
 UserInputService.InputBegan:
 	Connect(function(input, processed)
@@ -5542,6 +7340,8 @@ UserInputService.InputBegan:
 		then
 			main.Visible =
 				not main.Visible
+
+			syncPhoneButton()
 		end
 	end)
 
@@ -5558,14 +7358,13 @@ RunService.Heartbeat:
 			local humanoid =
 				getHumanoid()
 
-			if humanoid then
-				if
-					humanoid.WalkSpeed
-						~= State.WalkSpeedValue
-				then
-					humanoid.WalkSpeed =
-						State.WalkSpeedValue
-				end
+			if
+				humanoid
+				and humanoid.WalkSpeed
+					~= State.WalkSpeedValue
+			then
+				humanoid.WalkSpeed =
+					State.WalkSpeedValue
 			end
 		end
 	end)
@@ -5584,7 +7383,9 @@ task.spawn(function()
 			)
 		end
 
-		task.wait(0.1)
+		task.wait(
+			0.1
+		)
 	end
 end)
 
@@ -5603,9 +7404,13 @@ task.spawn(function()
 				harvestOwnCrops
 			)
 
-			task.wait(0.05)
+			task.wait(
+				0.05
+			)
 		else
-			task.wait(0.08)
+			task.wait(
+				0.08
+			)
 		end
 	end
 end)
@@ -5625,7 +7430,9 @@ task.spawn(function()
 			)
 		end
 
-		task.wait(2)
+		task.wait(
+			2
+		)
 	end
 end)
 
@@ -5646,7 +7453,9 @@ task.spawn(function()
 				State.EmoteDelay
 			)
 		else
-			task.wait(0.1)
+			task.wait(
+				0.1
+			)
 		end
 	end
 end)
@@ -5660,14 +7469,18 @@ task.spawn(function()
 			watchOwnPlants
 		)
 
-		task.wait(1)
+		task.wait(
+			1
+		)
 	end
 end)
 
 player.CharacterAdded:
 	Connect(function()
 
-		task.wait(0.8)
+		task.wait(
+			0.8
+		)
 
 		if State.Unloading then
 			return
@@ -5684,7 +7497,9 @@ player.CharacterAdded:
 		end
 
 		if State.Fly then
-			task.wait(0.25)
+			task.wait(
+				0.25
+			)
 
 			startFly()
 		end
@@ -5695,20 +7510,35 @@ local function cleanup(lockSession)
 		return
 	end
 
-	State.Unloading = true
+	State.Unloading =
+		true
 
-	State.AutoBuy = false
-	State.AutoHarvest = false
-	State.AutoSell = false
+	State.AutoBuy =
+		false
 
-	State.EmoteSpam = false
-	State.AntiAFK = false
+	State.AutoHarvest =
+		false
 
-	State.Fly = false
-	State.WalkSpeed = false
+	State.AutoSell =
+		false
 
-	harvesting = false
-	selling = false
+	State.EmoteSpam =
+		false
+
+	State.AntiAFK =
+		false
+
+	State.Fly =
+		false
+
+	State.WalkSpeed =
+		false
+
+	harvesting =
+		false
+
+	selling =
+		false
 
 	pcall(
 		stopFly
@@ -5719,13 +7549,28 @@ local function cleanup(lockSession)
 
 	if humanoid then
 		pcall(function()
-			humanoid.WalkSpeed = 16
-			humanoid.PlatformStand = false
-			humanoid.AutoRotate = true
+			humanoid.WalkSpeed =
+				16
+
+			humanoid.PlatformStand =
+				false
+
+			humanoid.AutoRotate =
+				true
 		end)
 	end
 
 	destroyHarvestPlatform()
+
+	if viewportConnection then
+		pcall(function()
+			viewportConnection:
+				Disconnect()
+		end)
+
+		viewportConnection =
+			nil
+	end
 
 	if idleConnection then
 		pcall(function()
@@ -5733,7 +7578,8 @@ local function cleanup(lockSession)
 				Disconnect()
 		end)
 
-		idleConnection = nil
+		idleConnection =
+			nil
 	end
 
 	if seedPromptAddedConnection then
@@ -5742,7 +7588,8 @@ local function cleanup(lockSession)
 				Disconnect()
 		end)
 
-		seedPromptAddedConnection = nil
+		seedPromptAddedConnection =
+			nil
 	end
 
 	if seedPromptRemovingConnection then
@@ -5751,18 +7598,21 @@ local function cleanup(lockSession)
 				Disconnect()
 		end)
 
-		seedPromptRemovingConnection = nil
+		seedPromptRemovingConnection =
+			nil
 	end
 
 	clearPlantConnections()
 
 	if lockSession then
-		_G.THHGrowersHardUnloaded = true
+		_G.THHGrowersHardUnloaded =
+			true
 	end
 
 	if screen and screen.Parent then
 		pcall(function()
-			screen:Destroy()
+			screen:
+				Destroy()
 		end)
 	end
 end
@@ -5773,15 +7623,25 @@ confirmUnload.MouseButton1Click:
 		confirmUnload.Text =
 			"Unloading..."
 
-		confirmUnload.Active = false
-		cancelUnload.Active = false
+		confirmUnload.Active =
+			false
 
-		task.wait(0.12)
+		cancelUnload.Active =
+			false
 
-		cleanup(true)
+		task.wait(
+			0.12
+		)
 
-		_G.THHGrowersCleanup = nil
-		_G.GridiGrowersCleanup = nil
+		cleanup(
+			true
+		)
+
+		_G.THHGrowersCleanup =
+			nil
+
+		_G.GridiGrowersCleanup =
+			nil
 	end)
 
 _G.THHGrowersCleanup =
@@ -5791,12 +7651,20 @@ _G.THHGrowersCleanup =
 			return
 		end
 
-		cleanup(false)
+		cleanup(
+			false
+		)
 	end
+
+syncPhoneButton()
 
 notify(
 	"THH Growers",
-	"Welcome, "
-		.. player.DisplayName
-		.. "."
+	IS_PHONE
+		and "Phone mode loaded for "
+			.. player.DisplayName
+			.. "."
+		or "PC mode loaded for "
+			.. player.DisplayName
+			.. "."
 )
